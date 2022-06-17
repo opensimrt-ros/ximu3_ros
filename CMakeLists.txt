@@ -9,12 +9,12 @@ find_package(catkin REQUIRED COMPONENTS
   geometry_msgs
   roscpp
   std_msgs
-  tf
+  tf2
 )
 
 catkin_package(
    INCLUDE_DIRS include
-   CATKIN_DEPENDS geometry_msgs roscpp std_msgs tf
+   CATKIN_DEPENDS geometry_msgs roscpp std_msgs tf2
 )
 
 include_directories(
@@ -43,5 +43,5 @@ endif ()
 #add_dependencies(${PROJECT_NAME}_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS} )
 
 target_link_libraries(main PRIVATE ${XIMU3} pthread dl m udev)
-target_link_libraries(${PROJECT_NAME}_node PRIVATE ${XIMU3} pthread dl m udev)
+target_link_libraries(${PROJECT_NAME}_node PRIVATE ${XIMU3} pthread dl m udev ${DEPENDENCY_LIBRARIES} ${catkin_LIBRARIES})
 

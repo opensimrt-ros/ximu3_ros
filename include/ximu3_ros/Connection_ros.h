@@ -5,6 +5,10 @@
 #include <inttypes.h> // PRIu64
 #include <iostream>
 #include <stdio.h>
+#include "geometry_msgs/PoseStamped.h"
+#include "ros/ros.h"
+#include <tf2/LinearMath/Quaternion.h>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 
 #define TIMESTAMP_FORMAT "%8" PRIu64 " us"
 #define UINT32_FORMAT " %8" PRIu32
@@ -14,10 +18,16 @@
 
 class Connection
 {
+public:
+	ros::Publisher poser_pub;
+
 protected:
     void run(const ximu3::ConnectionInfo& connectionInfo)
     {
-        // Create connection
+        ros::NodeHandle n;
+       	poser_pub = n.advertise<geometry_msgs::PoseStamped>("poser", 1000);
+
+	// Create connection
         ximu3::Connection connection(connectionInfo);
         connection.addDecodeErrorCallback(decodeErrorCallback);
         connection.addStatisticsCallback(statisticsCallback);
@@ -85,15 +95,25 @@ private:
         // std::cout << XIMU3_magnetometer_message_to_string(message) << std::endl; // alternative to above
     };
 
-    std::function<void(ximu3::XIMU3_QuaternionMessage message)> quaternionCallback = [](auto message)
+    std::function<void(ximu3::XIMU3_QuaternionMessage message)> quaternionCallback = [this](auto message)
     {
-        printf(TIMESTAMP_FORMAT FLOAT_FORMAT FLOAT_FORMAT FLOAT_FORMAT FLOAT_FORMAT "\n",
+        geometry_msgs::PoseStamped pp;
+
+	printf(TIMESTAMP_FORMAT FLOAT_FORMAT FLOAT_FORMAT FLOAT_FORMAT FLOAT_FORMAT "\n",
                message.timestamp,
                message.w_element,
                message.x_element,
                message.y_element,
                message.z_element);
         // std::cout << XIMU3_quaternion_message_to_string(message) << std::endl; // alternative to above
+	    tf2::Quaternion myQuaternion(message.x_element, message.y_element,message.z_element, message.w_element);
+	    geometry_msgs::Quaternion quat_msg = tf2::toMsg(myQuaternion);
+	   
+	    pp.header.frame_id = "torax";
+	    pp.header.stamp = ros::Time::now();
+	    pp.pose.orientation = quat_msg;
+	    poser_pub.publish(pp);
+
     };
 
     std::function<void(ximu3::XIMU3_RotationMatrixMessage message)> rotationMatrixCallback = [](auto message)
