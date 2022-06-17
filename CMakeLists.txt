@@ -22,7 +22,8 @@ include_directories(
   ${catkin_INCLUDE_DIRS}
 )
 
-add_executable(${PROJECT_NAME}_node src/main.cpp)
+add_executable(main src/main.cpp)
+add_executable(${PROJECT_NAME}_node src/node.cpp)
 
 
 #get_cmake_property(_variableNames VARIABLES)
@@ -41,4 +42,6 @@ endif ()
 
 #add_dependencies(${PROJECT_NAME}_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS} )
 
+target_link_libraries(main PRIVATE ${XIMU3} pthread dl m udev)
 target_link_libraries(${PROJECT_NAME}_node PRIVATE ${XIMU3} pthread dl m udev)
+
