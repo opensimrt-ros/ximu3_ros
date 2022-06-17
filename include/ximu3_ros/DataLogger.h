@@ -1,5 +1,5 @@
-#include "../../../x-IMU3-API/Cpp/Ximu3.hpp"
-#include "../Helpers.hpp"
+#include "ximu3_ros/Ximu3.hpp"
+#include "ximu3_ros/Helpers.hpp"
 #include <functional>
 #include <iostream>
 

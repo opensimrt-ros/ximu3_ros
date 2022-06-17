@@ -1,7 +1,7 @@
 #pragma once
 
-#include "../../../x-IMU3-API/Cpp/Ximu3.hpp"
-#include "../Helpers.hpp"
+#include "ximu3_ros/Ximu3.hpp"
+#include "ximu3_ros/Helpers_api.hpp"
 #include <inttypes.h> // PRIu64
 #include <iostream>
 #include <stdio.h>
