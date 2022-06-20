@@ -1,5 +1,6 @@
 #pragma once
 
+#include "tf2/convert.h"
 #include "ximu3_ros/Ximu3.hpp"
 #include "ximu3_ros/Helpers_api.hpp"
 #include <inttypes.h> // PRIu64
@@ -9,6 +10,8 @@
 #include "ros/ros.h"
 #include <tf2/LinearMath/Quaternion.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
+#include <tf2_ros/transform_broadcaster.h>
+#include <geometry_msgs/TransformStamped.h>
 
 #define TIMESTAMP_FORMAT "%8" PRIu64 " us"
 #define UINT32_FORMAT " %8" PRIu32
@@ -20,11 +23,11 @@ class Connection
 {
 public:
 	ros::Publisher poser_pub;
-
+	tf2_ros::TransformBroadcaster br;
 protected:
     void run(const ximu3::ConnectionInfo& connectionInfo)
     {
-        ros::NodeHandle n;
+	ros::NodeHandle n;
        	poser_pub = n.advertise<geometry_msgs::PoseStamped>("poser", 1000);
 
 	// Create connection
@@ -113,6 +116,21 @@ private:
 	    pp.header.stamp = ros::Time::now();
 	    pp.pose.orientation = quat_msg;
 	    poser_pub.publish(pp);
+
+	    geometry_msgs::TransformStamped transformStamped;
+	    transformStamped.header.stamp = ros::Time::now();
+	    transformStamped.header.frame_id = "map";
+	    transformStamped.child_frame_id = "ximu3";
+	    transformStamped.transform.rotation.x = message.x_element;
+	    transformStamped.transform.rotation.y = message.y_element;
+	    transformStamped.transform.rotation.z = message.z_element;
+	    transformStamped.transform.rotation.w = message.w_element;
+//	    transformStamped.transform.setOrigin(tf2::Vector3(0.5, 0.0, 0.0) );
+	    transformStamped.transform.translation.x = 0.5;	
+	    transformStamped.transform.translation.y = 0.0;	
+	    transformStamped.transform.translation.x = 0.3;	
+
+	    br.sendTransform(transformStamped);
 
     };
 
