@@ -1,6 +1,8 @@
 #pragma once
 
+#include "ros/rate.h"
 #include "tf2/convert.h"
+#include "ximu3_ros/Connection.hpp"
 #include "ximu3_ros/Ximu3.hpp"
 #include "ximu3_ros/Helpers_api.hpp"
 #include <inttypes.h> // PRIu64
@@ -12,6 +14,7 @@
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 #include <tf2_ros/transform_broadcaster.h>
 #include <geometry_msgs/TransformStamped.h>
+#include <thread>
 
 #define TIMESTAMP_FORMAT "%8" PRIu64 " us"
 #define UINT32_FORMAT " %8" PRIu32
@@ -24,23 +27,27 @@ class Connection
 public:
 	ros::Publisher poser_pub;
 	tf2_ros::TransformBroadcaster br;
-protected:
-    void run(const ximu3::ConnectionInfo& connectionInfo)
+//protected:
+       	ximu3::Connection* connection;
+	Connection()
+	{}
+	void run(const ximu3::ConnectionInfo& connectionInfo)
     {
+	ros::Rate r(1);
 	ros::NodeHandle n;
        	poser_pub = n.advertise<geometry_msgs::PoseStamped>("poser", 1000);
 
 	// Create connection
-        ximu3::Connection connection(connectionInfo);
-        connection.addDecodeErrorCallback(decodeErrorCallback);
-        connection.addStatisticsCallback(statisticsCallback);
+        connection = new ximu3::Connection(connectionInfo);
+        connection->addDecodeErrorCallback(decodeErrorCallback);
+        connection->addStatisticsCallback(statisticsCallback);
         {
-            connection.addQuaternionCallback(quaternionCallback);
+            connection->addQuaternionCallback(quaternionCallback);
         }
 
         // Open connection
         std::cout << "Connecting to " << connectionInfo.toString() << std::endl;
-        if (connection.open() != ximu3::XIMU3_ResultOk)
+        if (connection->open() != ximu3::XIMU3_ResultOk)
         {
             std::cout << "Unable to open connection" << std::endl;
             return;
@@ -49,11 +56,15 @@ protected:
 
         // Send command to strobe LED
         const std::vector<std::string> commands { "{\"strobe\":null}" };
-        connection.sendCommands(commands, 2, 500);
+        connection->sendCommands(commands, 2, 500);
 
         // Close connection
-        helpers::wait(-1);
-        connection.close();
+        //helpers::wait(-1);
+	while(ros::ok())
+	{
+		r.sleep();
+	}
+        connection->close();
     }
 
 private:
@@ -102,12 +113,12 @@ private:
     {
         geometry_msgs::PoseStamped pp;
 
-	printf(TIMESTAMP_FORMAT FLOAT_FORMAT FLOAT_FORMAT FLOAT_FORMAT FLOAT_FORMAT "\n",
-               message.timestamp,
-               message.w_element,
-               message.x_element,
-               message.y_element,
-               message.z_element);
+	//printf(TIMESTAMP_FORMAT FLOAT_FORMAT FLOAT_FORMAT FLOAT_FORMAT FLOAT_FORMAT "\n",
+        //       message.timestamp,
+        //       message.w_element,
+        //       message.x_element,
+        //       message.y_element,
+        //       message.z_element);
         // std::cout << XIMU3_quaternion_message_to_string(message) << std::endl; // alternative to above
 	    tf2::Quaternion myQuaternion(message.x_element, message.y_element,message.z_element, message.w_element);
 	    geometry_msgs::Quaternion quat_msg = tf2::toMsg(myQuaternion);

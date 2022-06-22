@@ -38,7 +38,8 @@ namespace helpers
             while (counter++ < std::numeric_limits<int>::max()) // 2^32 seconds = 136 years
             {
                 std::this_thread::sleep_for(std::chrono::seconds(1));
-            }
+            	std::cout << "this is looping" << std::endl;
+	    }
         }
         else
         {
