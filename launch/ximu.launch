@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
+<launch>
+
+	<arg name="name" 		default="ximu3" />
+	<arg name="ip_address" 		default="192.168.1.1" />
+	<arg name="send_port" 		default="8001" />
+	<arg name="receive_port" 	default="9000" />
+
+        <node pkg="ximu3_ros" type="imu_node" 	name="my_imu" output="screen">
+		<param name="name" 		value="$(arg name)" />
+		<param name="receive_port"	value="$(arg receive_port)" />
+		<param name="send_port" 	value="$(arg send_port)" />
+		<param name="ip_address"	value="$(arg ip_address)" />
+        </node>
+
+</launch>
+
