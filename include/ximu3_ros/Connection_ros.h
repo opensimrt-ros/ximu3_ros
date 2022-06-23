@@ -25,17 +25,24 @@
 class Connection
 {
 public:
-	ros::Publisher poser_pub;
+	//ros::Publisher poser_pub;
 	tf2_ros::TransformBroadcaster br;
 //protected:
        	ximu3::Connection* connection;
-	Connection()
+	std::string child_frame_id;
+	std::string parent_frame_id;
+	Connection(): child_frame_id("ximu3"), parent_frame_id("map")
 	{}
+	Connection(std::string parent_frame_id_, std::string child_frame_id_): child_frame_id(child_frame_id_), parent_frame_id(parent_frame_id_)
+	{
+		ROS_INFO("Parent frame_id set to %s", parent_frame_id.c_str());
+		ROS_INFO("Child frame_id set to %s", child_frame_id.c_str());
+	}
 	void run(const ximu3::ConnectionInfo& connectionInfo)
     {
 	ros::Rate r(1);
-	ros::NodeHandle n;
-       	poser_pub = n.advertise<geometry_msgs::PoseStamped>("poser", 1000);
+	//ros::NodeHandle n;
+       	//poser_pub = n.advertise<geometry_msgs::PoseStamped>("poser", 1000);
 
 	// Create connection
         connection = new ximu3::Connection(connectionInfo);
@@ -111,7 +118,7 @@ private:
 
     std::function<void(ximu3::XIMU3_QuaternionMessage message)> quaternionCallback = [this](auto message)
     {
-        geometry_msgs::PoseStamped pp;
+        //geometry_msgs::PoseStamped pp;
 
 	//printf(TIMESTAMP_FORMAT FLOAT_FORMAT FLOAT_FORMAT FLOAT_FORMAT FLOAT_FORMAT "\n",
         //       message.timestamp,
@@ -120,18 +127,20 @@ private:
         //       message.y_element,
         //       message.z_element);
         // std::cout << XIMU3_quaternion_message_to_string(message) << std::endl; // alternative to above
-	    tf2::Quaternion myQuaternion(message.x_element, message.y_element,message.z_element, message.w_element);
-	    geometry_msgs::Quaternion quat_msg = tf2::toMsg(myQuaternion);
+	    //tf2::Quaternion myQuaternion(message.x_element, message.y_element,message.z_element, message.w_element);
+	    //geometry_msgs::Quaternion quat_msg = tf2::toMsg(myQuaternion);
 	   
-	    pp.header.frame_id = "torax";
-	    pp.header.stamp = ros::Time::now();
-	    pp.pose.orientation = quat_msg;
-	    poser_pub.publish(pp);
+	    //pp.header.frame_id = "torax";
+	    //pp.header.stamp = ros::Time::now();
+	    //pp.pose.orientation = quat_msg;
+	    //poser_pub.publish(pp);
 
 	    geometry_msgs::TransformStamped transformStamped;
 	    transformStamped.header.stamp = ros::Time::now();
-	    transformStamped.header.frame_id = "map";
-	    transformStamped.child_frame_id = "ximu3";
+	    /*transformStamped.header.frame_id = "map";
+	    transformStamped.child_frame_id = "ximu3";*/
+	    transformStamped.header.frame_id = parent_frame_id;
+	    transformStamped.child_frame_id = child_frame_id;
 	    transformStamped.transform.rotation.x = message.x_element;
 	    transformStamped.transform.rotation.y = message.y_element;
 	    transformStamped.transform.rotation.z = message.z_element;

@@ -8,8 +8,18 @@ int main(int argc, char** argv)
 {
 
 	ros::init(argc, argv, "imu_reader_node", ros::init_options::AnonymousName);
-	Connection c;
 	ros::NodeHandle nh("~");
+	std::string parent_frame_id;
+	if(nh.getParam("parent_frame_id", parent_frame_id))
+	{
+		ROS_INFO("Using parent frame_id %s", parent_frame_id.c_str());
+	}
+	else
+	{
+		//parent_frame_id = "world";
+		parent_frame_id = "map";
+	}
+
 	std::string own_tf_name;
 	if(nh.getParam("name", own_tf_name))
 	{
@@ -52,6 +62,7 @@ int main(int argc, char** argv)
 		ROS_WARN("Using default send_port: %d", send_port );
 		//ROS_WARN("Make sure port is unique and exposed in docker (both dockerfile and command line call!)");
 	}
+	Connection c(parent_frame_id, own_tf_name);
 
 	//c.run(ximu3::UdpConnectionInfo("192.168.1.1", 9000, 8001));	
 	c.run(ximu3::UdpConnectionInfo(ip_address, receive_port, send_port));	
