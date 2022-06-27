@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ros/rate.h"
+#include "ros/time.h"
 #include "tf2/convert.h"
 #include "ximu3_ros/Connection.hpp"
 #include "ximu3_ros/Ximu3.hpp"
@@ -28,6 +29,7 @@ public:
 	//ros::Publisher poser_pub;
 	tf2_ros::TransformBroadcaster br;
 //protected:
+	ros::WallTime last_time;
        	ximu3::Connection* connection;
 	std::string child_frame_id;
 	std::string parent_frame_id;
@@ -41,6 +43,7 @@ public:
 	void run(const ximu3::ConnectionInfo& connectionInfo)
     {
 	ros::Rate r(1);
+	last_time = ros::WallTime::now();
 	//ros::NodeHandle n;
        	//poser_pub = n.advertise<geometry_msgs::PoseStamped>("poser", 1000);
 
@@ -60,6 +63,9 @@ public:
             return;
         }
         std::cout << "Connection successful" << std::endl;
+        
+	const std::vector<std::string> rate_commands { "{\"inertialMessageRateDivisor\":1}" };
+        connection->sendCommands(rate_commands, 2, 500);
 
         // Send command to strobe LED
         const std::vector<std::string> commands { "{\"strobe\":null}" };
@@ -118,6 +124,10 @@ private:
 
     std::function<void(ximu3::XIMU3_QuaternionMessage message)> quaternionCallback = [this](auto message)
     {
+	ros::WallTime this_time = ros::WallTime::now();
+	double execution_time = (this_time - last_time).toNSec()*1e-6;
+	last_time = this_time;
+	ROS_INFO_STREAM("Elapsed time (ms): " << execution_time << " | Rate: " << 1/execution_time*1000);
         //geometry_msgs::PoseStamped pp;
 
 	//printf(TIMESTAMP_FORMAT FLOAT_FORMAT FLOAT_FORMAT FLOAT_FORMAT FLOAT_FORMAT "\n",
