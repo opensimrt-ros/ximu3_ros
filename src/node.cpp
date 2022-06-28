@@ -12,7 +12,7 @@ int main(int argc, char** argv)
 	std::string parent_frame_id;
 	if(nh.getParam("parent_frame_id", parent_frame_id))
 	{
-		ROS_INFO("Using parent frame_id %s", parent_frame_id.c_str());
+		ROS_INFO("Using parent frame_id: %s", parent_frame_id.c_str());
 	}
 	else
 	{
@@ -23,12 +23,12 @@ int main(int argc, char** argv)
 	std::string own_tf_name;
 	if(nh.getParam("name", own_tf_name))
 	{
-		ROS_INFO("Got name param: %s", own_tf_name.c_str());
+		ROS_INFO("Publishing child_frame_id: %s", own_tf_name.c_str());
 	}
 	else
 	{
 		own_tf_name = "ximu";
-		ROS_ERROR("Failed to get param 'name'. Setting default name to '%s'.", own_tf_name.c_str());
+		ROS_ERROR("Failed to get param 'name'. Setting default child_frame_id to '%s'.", own_tf_name.c_str());
 	}
 	std::string ip_address;
 	if(nh.getParam("ip_address", ip_address))
@@ -62,7 +62,27 @@ int main(int argc, char** argv)
 		ROS_WARN("Using default send_port: %d", send_port );
 		//ROS_WARN("Make sure port is unique and exposed in docker (both dockerfile and command line call!)");
 	}
-	Connection c(parent_frame_id, own_tf_name);
+	
+	int ahrs_divisor_rate;
+	if (nh.getParam("ahrs_divisor", ahrs_divisor_rate))
+	{
+		if (ahrs_divisor_rate > 0)
+		{		
+			ROS_INFO("Setting AHRS divisor rate to: %d", ahrs_divisor_rate);
+			ROS_INFO_STREAM("Will publish TFs at rate of: " << 400.0/ahrs_divisor_rate);
+		}
+		else
+		{
+			ROS_ERROR_STREAM("AHRS divisor set to zero disables the AHRS. No Quaternions will be published. Are you sure this is what you want?");
+		}
+	}
+	else
+	{
+		ahrs_divisor_rate = 8;
+		ROS_WARN("Using default AHRS divisor rate: %d", ahrs_divisor_rate );
+	}
+
+	Connection c(parent_frame_id, own_tf_name, ahrs_divisor_rate);
 
 	//c.run(ximu3::UdpConnectionInfo("192.168.1.1", 9000, 8001));	
 	c.run(ximu3::UdpConnectionInfo(ip_address, receive_port, send_port));	

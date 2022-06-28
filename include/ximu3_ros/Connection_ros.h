@@ -33,12 +33,31 @@ public:
        	ximu3::Connection* connection;
 	std::string child_frame_id;
 	std::string parent_frame_id;
-	Connection(): child_frame_id("ximu3"), parent_frame_id("map")
+	unsigned int my_divisor_rate = 8;
+	Connection(): child_frame_id("ximu3"), parent_frame_id("map"), my_divisor_rate(8)
 	{}
-	Connection(std::string parent_frame_id_, std::string child_frame_id_): child_frame_id(child_frame_id_), parent_frame_id(parent_frame_id_)
+	Connection(std::string parent_frame_id_, std::string child_frame_id_, unsigned int div): child_frame_id(child_frame_id_), parent_frame_id(parent_frame_id_), my_divisor_rate(div)
 	{
 		ROS_INFO("Parent frame_id set to %s", parent_frame_id.c_str());
 		ROS_INFO("Child frame_id set to %s", child_frame_id.c_str());
+	
+	}
+	void set_rate(unsigned int divisor)
+	{
+
+	const std::vector<std::string> rate_commands { "{\"inertialMessageRateDivisor\":0}", "{\"highGAccelerometerMessageRateDivisor\":0}","{\"ahrsMessageRateDivisor\":"+std::to_string(divisor)+"}" };
+       	for (auto a:rate_commands)
+		ROS_DEBUG_STREAM("Setting command:" << a);
+	connection->sendCommands(rate_commands, 2, 500);
+	const std::vector<std::string> apply_commands { "{\"apply\":null}" };
+       	connection->sendCommands(apply_commands, 2, 500);
+	ROS_DEBUG_STREAM("Applying command on IMU");
+	//sometimes it doesnt work without this? I dont want to test it. Maybe it can be removed.
+	const std::vector<std::string> save_command { "{\"save\":null}" };
+       	connection->sendCommands(save_command, 2, 500);
+	ROS_DEBUG_STREAM("Saving settings on IMU EEPROM");
+
+
 	}
 	void run(const ximu3::ConnectionInfo& connectionInfo)
     {
@@ -56,17 +75,15 @@ public:
         }
 
         // Open connection
-        std::cout << "Connecting to " << connectionInfo.toString() << std::endl;
+        ROS_INFO_STREAM("Connecting to " << connectionInfo.toString());
         if (connection->open() != ximu3::XIMU3_ResultOk)
         {
-            std::cout << "Unable to open connection" << std::endl;
+            ROS_ERROR_STREAM( "Unable to open connection");
             return;
         }
-        std::cout << "Connection successful" << std::endl;
+        ROS_INFO_STREAM("Connection successful");
         
-	const std::vector<std::string> rate_commands { "{\"inertialMessageRateDivisor\":1}" };
-        connection->sendCommands(rate_commands, 2, 500);
-
+	set_rate(my_divisor_rate);
         // Send command to strobe LED
         const std::vector<std::string> commands { "{\"strobe\":null}" };
         connection->sendCommands(commands, 2, 500);
@@ -83,20 +100,20 @@ public:
 private:
     std::function<void(ximu3::XIMU3_DecodeError error)> decodeErrorCallback = [](auto decode_error)
     {
-        std::cout << XIMU3_decode_error_to_string(decode_error) << std::endl;
+         ROS_ERROR_STREAM(XIMU3_decode_error_to_string(decode_error) );
     };
 
     std::function<void(ximu3::XIMU3_Statistics statistics)> statisticsCallback = [](auto statistics)
     {
-        printf(TIMESTAMP_FORMAT UINT64_FORMAT " bytes" UINT32_FORMAT " bytes/s" UINT64_FORMAT " messages" UINT32_FORMAT " messages/s" UINT64_FORMAT " errors" UINT32_FORMAT " errors/s\n",
+        /*printf(TIMESTAMP_FORMAT UINT64_FORMAT " bytes" UINT32_FORMAT " bytes/s" UINT64_FORMAT " messages" UINT32_FORMAT " messages/s" UINT64_FORMAT " errors" UINT32_FORMAT " errors/s\n",
                statistics.timestamp,
                statistics.data_total,
                statistics.data_rate,
                statistics.message_total,
                statistics.message_rate,
                statistics.error_total,
-               statistics.error_rate);
-        // std::cout << XIMU3_statistics_to_string(statistics) << std::endl; // alternative to above
+               statistics.error_rate);*/
+        ROS_DEBUG_STREAM( XIMU3_statistics_to_string(statistics)); // alternative to above
     };
 
     std::function<void(ximu3::XIMU3_InertialMessage message)> inertialCallback = [](auto message)
@@ -127,7 +144,7 @@ private:
 	ros::WallTime this_time = ros::WallTime::now();
 	double execution_time = (this_time - last_time).toNSec()*1e-6;
 	last_time = this_time;
-	ROS_INFO_STREAM("Elapsed time (ms): " << execution_time << " | Rate: " << 1/execution_time*1000);
+	ROS_DEBUG_STREAM("Elapsed time (ms): " << execution_time << " | Rate: " << 1/execution_time*1000);
         //geometry_msgs::PoseStamped pp;
 
 	//printf(TIMESTAMP_FORMAT FLOAT_FORMAT FLOAT_FORMAT FLOAT_FORMAT FLOAT_FORMAT "\n",
