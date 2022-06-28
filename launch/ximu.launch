@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
+<launch>
+
+	<arg name="name" 		default="ximu3" />
+	<arg name="parent_frame_id" 	default="map" />
+	<arg name="ip_address" 		default="192.168.1.1" />
+	<arg name="send_port" 		default="8001" />
+	<arg name="receive_port" 	default="9000" />
+	
+	<!-- ahrs_divisor
+		0 .. disabled
+		1 .. 400 hz
+		2 .. 200 hz
+		3 .. 133 hz
+		4 .. 100 hz
+		8 .. 50 hz
+	-->
+
+	<arg name="ahrs_divisor" 	default="1" />
+
+        <node pkg="ximu3_ros" type="imu_node" 	name="my_imu" output="screen">
+		<param name="name" 		value="$(arg name)" />
+		<param name="parent_frame_id" 	value="$(arg parent_frame_id)" />
+		<param name="receive_port"	value="$(arg receive_port)" />
+		<param name="send_port" 	value="$(arg send_port)" />
+		<param name="ip_address"	value="$(arg ip_address)" />
+		<param name="ahrs_divisor"	value="$(arg ahrs_divisor)" />
+        </node>
+
+</launch>
+
