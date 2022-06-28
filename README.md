@@ -4,11 +4,13 @@ Simple tf publisher based on the Cpp Udp examples from https://github.com/xioTec
 
 Library `libximu3.a` was compiled from the rust source and the binary copied over. 
 
+# Usage:
 
+Compile package with `catkin_make`, source the catkin\_workspace and roslaunch it:
+
+	roslaunch ximu3_ros ximu.launch
 
 ## TODO:
 
-- consider adding code for generating libximu3.a as well (with a custom target)
 - make sure parametrization works with multiple IMUs
-- remove incorrect code for PoseStamped publisher
 - add other data from sensor to publish complete ros IMU sensor message
