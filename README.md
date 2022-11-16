@@ -10,6 +10,10 @@ Compile package with `catkin_make`, source the catkin\_workspace and roslaunch i
 
 	roslaunch ximu3_ros ximu.launch
 
+# Compiling the driver library yourself
+
+To compile a newer version of the library you may use https://github.com/opensimrt-ros/docker-ximu3-library-builder docker provided. It is currently using a different version of the x-IMU3-Software repository, known to work Debian 11.
+
 ## TODO:
 
 - make sure parametrization works with multiple IMUs
