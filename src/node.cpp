@@ -1,15 +1,23 @@
 #include "ros/init.h"
 #include "ros/node_handle.h"
+#include "ros/publisher.h"
 #include "ros/spinner.h"
 #include "ximu3_ros/Connection_ros.h"
 #include "ros/ros.h"
+#include "std_msgs/Float32.h"
 
 int main(int argc, char** argv)
 {
 
 	ros::init(argc, argv, "imu_reader_node", ros::init_options::AnonymousName);
+	//if( ros::console::set_logger_level(ROSCONSOLE_DEFAULT_NAME, ros::console::levels::Debug) ) {
+	//	ros::console::notifyLoggerLevelsChanged();
+	//}
 	ros::NodeHandle nh("~");
 	std::string parent_frame_id;
+	std::vector<double> origin;
+	bool publish_status;
+	ros::Publisher bat_pub, bat_v_pub, temp_pub;
 	if(nh.getParam("parent_frame_id", parent_frame_id))
 	{
 		ROS_INFO("Using parent frame_id: %s", parent_frame_id.c_str());
@@ -82,7 +90,23 @@ int main(int argc, char** argv)
 		ROS_WARN("Using default AHRS divisor rate: %d", ahrs_divisor_rate );
 	}
 
-	Connection c(parent_frame_id, own_tf_name, ahrs_divisor_rate);
+	nh.getParam("origin", origin);
+	if (origin.size() == 0)
+	{
+		origin = {0,0,0};
+		ROS_INFO("Origin not set. Using 0,0,0.");
+	}
+
+	if (nh.getParam("publish_status", publish_status))
+	{
+		ROS_INFO("Publishing status messages");
+		temp_pub = nh.advertise<std_msgs::Float32>("temperature",1);
+		bat_pub = nh.advertise<std_msgs::Float32>("battery/percentage",1);
+		bat_v_pub = nh.advertise<std_msgs::Float32>("battery/voltage",1);
+	}
+
+
+	Connection c( parent_frame_id, own_tf_name, ahrs_divisor_rate, origin, temp_pub, bat_pub, bat_v_pub, publish_status);
 
 	//c.run(ximu3::UdpConnectionInfo("192.168.1.1", 9000, 8001));	
 	c.run(ximu3::UdpConnectionInfo(ip_address, receive_port, send_port));	

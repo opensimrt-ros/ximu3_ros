@@ -1,5 +1,7 @@
 #pragma once
 
+#include "ros/init.h"
+#include "ros/publisher.h"
 #include "ros/rate.h"
 #include "ros/time.h"
 #include "tf2/convert.h"
@@ -16,6 +18,7 @@
 #include <tf2_ros/transform_broadcaster.h>
 #include <geometry_msgs/TransformStamped.h>
 #include <thread>
+#include "std_msgs/Float32.h"
 
 #define TIMESTAMP_FORMAT "%8" PRIu64 " us"
 #define UINT32_FORMAT " %8" PRIu32
@@ -34,9 +37,12 @@ public:
 	std::string child_frame_id;
 	std::string parent_frame_id;
 	unsigned int my_divisor_rate = 8;
+	std::vector<double> origin;
+	bool publish_status;
+	ros::Publisher bat_pub, bat_v_pub, temp_pub;
 	Connection(): child_frame_id("ximu3"), parent_frame_id("map"), my_divisor_rate(8)
 	{}
-	Connection(std::string parent_frame_id_, std::string child_frame_id_, unsigned int div): child_frame_id(child_frame_id_), parent_frame_id(parent_frame_id_), my_divisor_rate(div)
+	Connection(std::string parent_frame_id_, std::string child_frame_id_, unsigned int div, std::vector<double> origin_, ros::Publisher temp_pub_, ros::Publisher bat_pub_, ros::Publisher bat_v_pub_, bool publish_status_ ): child_frame_id(child_frame_id_), parent_frame_id(parent_frame_id_), my_divisor_rate(div), origin(origin_), bat_pub(bat_pub_), bat_v_pub(bat_v_pub_), temp_pub(temp_pub_), publish_status(publish_status_)
 	{
 		ROS_INFO("Parent frame_id set to %s", parent_frame_id.c_str());
 		ROS_INFO("Child frame_id set to %s", child_frame_id.c_str());
@@ -72,7 +78,13 @@ public:
         connection->addStatisticsCallback(statisticsCallback);
         {
             connection->addQuaternionCallback(quaternionCallback);
-        }
+	    //status messages
+	    if (publish_status)
+	    {
+	    connection->addBatteryCallback(batteryCallback);
+	    connection->addTemperatureCallback(temperatureCallback);
+	    }
+	}
 
         // Open connection
         ROS_INFO_STREAM("Connecting to " << connectionInfo.toString());
@@ -173,9 +185,9 @@ private:
 	    transformStamped.transform.rotation.z = message.z_element;
 	    transformStamped.transform.rotation.w = message.w_element;
 //	    transformStamped.transform.setOrigin(tf2::Vector3(0.5, 0.0, 0.0) );
-	    transformStamped.transform.translation.x = 0.5;	
-	    transformStamped.transform.translation.y = 0.0;	
-	    transformStamped.transform.translation.x = 0.3;	
+	    transformStamped.transform.translation.x = origin[0];	
+	    transformStamped.transform.translation.y = origin[1];	
+	    transformStamped.transform.translation.z = origin[2];	
 
 	    br.sendTransform(transformStamped);
 
@@ -245,22 +257,34 @@ private:
         // std::cout << XIMU3_high_g_accelerometer_message_to_string(message) << std::endl; // alternative to above
     };
 
-    std::function<void(ximu3::XIMU3_TemperatureMessage message)> temperatureCallback = [](auto message)
+    std::function<void(ximu3::XIMU3_TemperatureMessage message)> temperatureCallback = [this](auto message)
     {
-        printf(TIMESTAMP_FORMAT FLOAT_FORMAT " degC\n",
-               message.timestamp,
-               message.temperature);
-        // std::cout << XIMU3_temperature_message_to_string(message) << std::endl; // alternative to above
+        //printf(TIMESTAMP_FORMAT FLOAT_FORMAT " degC\n",
+        //       message.timestamp,
+        //       message.temperature);
+        ROS_DEBUG_STREAM( XIMU3_temperature_message_to_string(message)); // alternative to above
+	std_msgs::Float32 temperature;
+	temperature.data = message.temperature;
+	temp_pub.publish(temperature);
+	ros::spinOnce();
     };
 
-    std::function<void(ximu3::XIMU3_BatteryMessage message)> batteryCallback = [](auto message)
+    std::function<void(ximu3::XIMU3_BatteryMessage message)> batteryCallback = [this](auto message)
     {
-        printf(TIMESTAMP_FORMAT FLOAT_FORMAT " %%" FLOAT_FORMAT " V" FLOAT_FORMAT "\n",
-               message.timestamp,
-               message.percentage,
-               message.voltage,
-               message.charging_status);
-        // std::cout << XIMU3_battery_message_to_string(message) << std::endl; // alternative to above
+        //printf(TIMESTAMP_FORMAT FLOAT_FORMAT " %%" FLOAT_FORMAT " V" FLOAT_FORMAT "\n",
+        //       message.timestamp,
+        //       message.percentage,
+        //       message.voltage,
+        //       message.charging_status);
+	std_msgs::Float32 battery_percentage,battery_voltage;
+	battery_percentage.data = message.percentage;
+	battery_voltage.data = message.voltage;
+	bat_pub.publish(battery_percentage);
+
+	bat_v_pub.publish(battery_voltage);
+
+        ROS_DEBUG_STREAM( XIMU3_battery_message_to_string(message)); // alternative to above
+	ros::spinOnce();
     };
 
     std::function<void(ximu3::XIMU3_RssiMessage message)> rssiCallback = [](auto message)
