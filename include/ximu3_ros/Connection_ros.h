@@ -179,7 +179,7 @@ private:
 	    if (last_time_stamp == 0)
 		last_time_stamp = this_message_time; // to initialize the thing and not give an absurd amount of time delay on first duration period
 	    //ROS_INFO_STREAM(this_message_time); //microssecond
-	    auto fake_time = ros::Time::now() + ros::Duration((double)(this_message_time - last_time_stamp)/100000);
+	    auto fake_time = ros::Time::now() + ros::Duration((double)(this_message_time - last_time_stamp)/1000000);
 	    
 	    geometry_msgs::TransformStamped transformStamped;
 	    transformStamped.header.stamp = fake_time;
