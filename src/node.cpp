@@ -17,7 +17,7 @@ int main(int argc, char** argv)
 	std::string parent_frame_id;
 	std::vector<double> origin;
 	bool publish_status;
-	ros::Publisher bat_pub, bat_v_pub, temp_pub;
+	ros::Publisher bat_pub, bat_v_pub, temp_pub, imu_pub;
 	if(nh.getParam("parent_frame_id", parent_frame_id))
 	{
 		ROS_INFO("Using parent frame_id: %s", parent_frame_id.c_str());
@@ -104,9 +104,10 @@ int main(int argc, char** argv)
 		bat_pub = nh.advertise<std_msgs::Float32>("battery/percentage",1);
 		bat_v_pub = nh.advertise<std_msgs::Float32>("battery/voltage",1);
 	}
+	imu_pub = nh.advertise<sensor_msgs::Imu>("imu",1);
 
 
-	Connection c( parent_frame_id, own_tf_name, ahrs_divisor_rate, origin, temp_pub, bat_pub, bat_v_pub, publish_status);
+	Connection c( parent_frame_id, own_tf_name, ahrs_divisor_rate, origin, temp_pub, bat_pub, bat_v_pub, imu_pub, publish_status);
 
 	//c.run(ximu3::UdpConnectionInfo("192.168.1.1", 9000, 8001));	
 	c.run(ximu3::UdpConnectionInfo(ip_address, receive_port, send_port));	

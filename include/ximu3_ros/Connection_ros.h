@@ -19,6 +19,7 @@
 #include <geometry_msgs/TransformStamped.h>
 #include <thread>
 #include "std_msgs/Float32.h"
+#include "sensor_msgs/Imu.h"
 
 #define TIMESTAMP_FORMAT "%8" PRIu64 " us"
 #define UINT32_FORMAT " %8" PRIu32
@@ -33,16 +34,17 @@ public:
 	tf2_ros::TransformBroadcaster br;
 //protected:
 	ros::WallTime last_time;
-       	ximu3::Connection* connection;
+       	uint64_t last_time_stamp;
+	ximu3::Connection* connection;
 	std::string child_frame_id;
 	std::string parent_frame_id;
 	unsigned int my_divisor_rate = 8;
 	std::vector<double> origin;
 	bool publish_status;
-	ros::Publisher bat_pub, bat_v_pub, temp_pub;
+	ros::Publisher bat_pub, bat_v_pub, temp_pub, imu_pub;
 	Connection(): child_frame_id("ximu3"), parent_frame_id("map"), my_divisor_rate(8)
 	{}
-	Connection(std::string parent_frame_id_, std::string child_frame_id_, unsigned int div, std::vector<double> origin_, ros::Publisher temp_pub_, ros::Publisher bat_pub_, ros::Publisher bat_v_pub_, bool publish_status_ ): child_frame_id(child_frame_id_), parent_frame_id(parent_frame_id_), my_divisor_rate(div), origin(origin_), bat_pub(bat_pub_), bat_v_pub(bat_v_pub_), temp_pub(temp_pub_), publish_status(publish_status_)
+	Connection(std::string parent_frame_id_, std::string child_frame_id_, unsigned int div, std::vector<double> origin_, ros::Publisher temp_pub_, ros::Publisher bat_pub_, ros::Publisher bat_v_pub_, ros::Publisher imu_pub_, bool publish_status_ ): child_frame_id(child_frame_id_), parent_frame_id(parent_frame_id_), my_divisor_rate(div), origin(origin_), bat_pub(bat_pub_), bat_v_pub(bat_v_pub_), temp_pub(temp_pub_), publish_status(publish_status_), imu_pub(imu_pub_)
 	{
 		ROS_INFO("Parent frame_id set to %s", parent_frame_id.c_str());
 		ROS_INFO("Child frame_id set to %s", child_frame_id.c_str());
@@ -173,9 +175,14 @@ private:
 	    //pp.header.stamp = ros::Time::now();
 	    //pp.pose.orientation = quat_msg;
 	    //poser_pub.publish(pp);
-
+	    auto this_message_time = message.timestamp;
+	    if (last_time_stamp == 0)
+		last_time_stamp = this_message_time; // to initialize the thing and not give an absurd amount of time delay on first duration period
+	    //ROS_INFO_STREAM(this_message_time); //microssecond
+	    auto fake_time = ros::Time::now() + ros::Duration((double)(this_message_time - last_time_stamp)/100000);
+	    
 	    geometry_msgs::TransformStamped transformStamped;
-	    transformStamped.header.stamp = ros::Time::now();
+	    transformStamped.header.stamp = fake_time;
 	    /*transformStamped.header.frame_id = "map";
 	    transformStamped.child_frame_id = "ximu3";*/
 	    transformStamped.header.frame_id = parent_frame_id;
@@ -190,6 +197,11 @@ private:
 	    transformStamped.transform.translation.z = origin[2];	
 
 	    br.sendTransform(transformStamped);
+
+	    sensor_msgs::Imu imu_msg;
+	    imu_msg.header = transformStamped.header;
+	    imu_msg.orientation = transformStamped.transform.rotation;
+	    imu_pub.publish(imu_msg);
 
     };
 
