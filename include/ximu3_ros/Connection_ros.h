@@ -30,6 +30,20 @@
 #define FLOAT_FORMAT " %8.3f"
 #define STRING_FORMAT " \"%s\""
 
+struct ConnectionParams
+{
+	std::string parent_frame_id;
+	std::string child_frame_id;
+	unsigned int div;
+	std::vector<double> origin;
+	ros::Publisher temp_pub;
+	ros::Publisher bat_pub; 
+	ros::Publisher bat_v_pub;
+	ros::Publisher imu_pub;
+	bool publish_status;
+	ros::NodeHandle nh;
+};
+
 class Connection
 {
 public:
@@ -51,9 +65,20 @@ public:
 	//tf2::Quaternion q_cal{0,0,0,1};
 	bool publish_status;
 	ros::Publisher bat_pub, bat_v_pub, temp_pub, imu_pub, diags_pub;
+	ros::NodeHandle nh;
 	Connection(): child_frame_id("ximu3"), parent_frame_id("map"), my_divisor_rate(8)
 	{}
-	Connection(std::string parent_frame_id_, std::string child_frame_id_, unsigned int div, std::vector<double> origin_, ros::Publisher temp_pub_, ros::Publisher bat_pub_, ros::Publisher bat_v_pub_, ros::Publisher imu_pub_, bool publish_status_ , ros::NodeHandle nh): child_frame_id(child_frame_id_), parent_frame_id(parent_frame_id_), my_divisor_rate(div), origin(origin_), bat_pub(bat_pub_), bat_v_pub(bat_v_pub_), temp_pub(temp_pub_), publish_status(publish_status_), imu_pub(imu_pub_)
+	Connection(ConnectionParams cp): 
+		child_frame_id(cp.child_frame_id), 
+		parent_frame_id(cp.parent_frame_id), 
+		my_divisor_rate(cp.div), 
+		origin(cp.origin), 
+		bat_pub(cp.bat_pub), 
+		bat_v_pub(cp.bat_v_pub),
+		temp_pub(cp.temp_pub), 
+		publish_status(cp.publish_status),
+		imu_pub(cp.imu_pub),
+		nh(cp.nh)
 	{
 		imu_name = child_frame_id; // maybe I should read something fancy here to better identify them
 		ROS_INFO("Parent frame_id set to %s", parent_frame_id.c_str());
@@ -248,9 +273,6 @@ private:
 			    << q_cal.getZ() << " , " 
 			    << q_cal.getW() );*/
 	    transformStamped.transform.rotation = tf2::toMsg(r*q_cal->inverse());
-	    //transformStamped.transform.rotation = tf2::toMsg(*q_cal*r);
-	    //transformStamped.transform.rotation = tf2::toMsg(q_cal->inverse()*r*( *q_cal));
-	    //transformStamped.transform.rotation = tf2::toMsg(*q_cal*r*q_cal->inverse());
 	    
 	    //transformStamped.transform.rotation.x = message.x_element;
 	    //transformStamped.transform.rotation.y = message.y_element;
