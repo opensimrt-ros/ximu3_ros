@@ -20,6 +20,9 @@
 #include <thread>
 #include "std_msgs/Float32.h"
 #include "sensor_msgs/Imu.h"
+#include "diagnostic_msgs/DiagnosticStatus.h"
+#include "diagnostic_msgs/DiagnosticArray.h"
+
 
 #define TIMESTAMP_FORMAT "%8" PRIu64 " us"
 #define UINT32_FORMAT " %8" PRIu32
@@ -34,21 +37,30 @@ public:
 	tf2_ros::TransformBroadcaster br;
 //protected:
 	ros::WallTime last_time;
-       	uint64_t last_time_stamp;
+       	uint64_t last_time_stamp = 0;
+       	uint64_t this_time_stamp = 0;
 	ximu3::Connection* connection;
 	std::string child_frame_id;
+	std::string imu_name;
 	std::string parent_frame_id;
 	unsigned int my_divisor_rate = 8;
 	std::vector<double> origin;
+	std::optional<tf2::Quaternion> q_cal;
+	diagnostic_msgs::DiagnosticStatus d_msg;
+	diagnostic_msgs::DiagnosticArray da_msg;
+	//tf2::Quaternion q_cal{0,0,0,1};
 	bool publish_status;
-	ros::Publisher bat_pub, bat_v_pub, temp_pub, imu_pub;
+	ros::Publisher bat_pub, bat_v_pub, temp_pub, imu_pub, diags_pub;
 	Connection(): child_frame_id("ximu3"), parent_frame_id("map"), my_divisor_rate(8)
 	{}
-	Connection(std::string parent_frame_id_, std::string child_frame_id_, unsigned int div, std::vector<double> origin_, ros::Publisher temp_pub_, ros::Publisher bat_pub_, ros::Publisher bat_v_pub_, ros::Publisher imu_pub_, bool publish_status_ ): child_frame_id(child_frame_id_), parent_frame_id(parent_frame_id_), my_divisor_rate(div), origin(origin_), bat_pub(bat_pub_), bat_v_pub(bat_v_pub_), temp_pub(temp_pub_), publish_status(publish_status_), imu_pub(imu_pub_)
+	Connection(std::string parent_frame_id_, std::string child_frame_id_, unsigned int div, std::vector<double> origin_, ros::Publisher temp_pub_, ros::Publisher bat_pub_, ros::Publisher bat_v_pub_, ros::Publisher imu_pub_, bool publish_status_ , ros::NodeHandle nh): child_frame_id(child_frame_id_), parent_frame_id(parent_frame_id_), my_divisor_rate(div), origin(origin_), bat_pub(bat_pub_), bat_v_pub(bat_v_pub_), temp_pub(temp_pub_), publish_status(publish_status_), imu_pub(imu_pub_)
 	{
+		imu_name = child_frame_id; // maybe I should read something fancy here to better identify them
 		ROS_INFO("Parent frame_id set to %s", parent_frame_id.c_str());
 		ROS_INFO("Child frame_id set to %s", child_frame_id.c_str());
-	
+		diags_pub = nh.advertise<diagnostic_msgs::DiagnosticArray>("/diagnostics",1);	
+		d_msg.name = imu_name;
+		da_msg.header.frame_id = parent_frame_id;
 	}
 	void set_rate(unsigned int divisor)
 	{
@@ -106,12 +118,46 @@ public:
         //helpers::wait(-1);
 	while(ros::ok())
 	{
+		ros::WallTime this_time = ros::WallTime::now();
+		double execution_time = (this_time - last_time).toNSec()*1e-6;
 		r.sleep();
+		if (last_time_stamp == 0) // hasnt published yet
+		{
+			d_msg.level = diagnostic_msgs::DiagnosticStatus::STALE;
+			d_msg.message = "Haven't published yet";
+			ROS_WARN_STREAM(imu_name << ": "<< d_msg.message);
+			diagnostic_msgs::DiagnosticArray a_diags_msg;
+			a_diags_msg.status.push_back(d_msg);
+			da_msg = a_diags_msg;
+						  //
+		}
+		if (execution_time > 100) // hasnt updated timestamp
+		{
+			d_msg.level = diagnostic_msgs::DiagnosticStatus::STALE; // maybe error?
+			d_msg.message = "Timestamp hasn't changed. Is the IMU ON? execution_time is " + std::to_string(execution_time) + "[ms]";
+			ROS_WARN_STREAM(imu_name << ": "<< d_msg.message);
+			diagnostic_msgs::DiagnosticArray a_diags_msg;
+			a_diags_msg.status.push_back(d_msg);
+			da_msg = a_diags_msg;
+						  //
+		}
+		else if (da_msg.status.size() <1){
+			d_msg.level = diagnostic_msgs::DiagnosticStatus::OK;
+			diagnostic_msgs::DiagnosticArray a_diags_msg;
+			a_diags_msg.status.push_back(d_msg);
+			da_msg = a_diags_msg;
+		}
+
+		da_msg.header.stamp = ros::Time::now();
+		diags_pub.publish(da_msg);
+		da_msg.status.clear();
 	}
+	
         connection->close();
     }
 
 private:
+
     std::function<void(ximu3::XIMU3_DecodeError error)> decodeErrorCallback = [](auto decode_error)
     {
          ROS_ERROR_STREAM(XIMU3_decode_error_to_string(decode_error) );
@@ -175,22 +221,41 @@ private:
 	    //pp.header.stamp = ros::Time::now();
 	    //pp.pose.orientation = quat_msg;
 	    //poser_pub.publish(pp);
-	    auto this_message_time = message.timestamp;
+	    this_time_stamp = message.timestamp;
 	    if (last_time_stamp == 0)
-		last_time_stamp = this_message_time; // to initialize the thing and not give an absurd amount of time delay on first duration period
-	    //ROS_INFO_STREAM(this_message_time); //microssecond
-	    auto fake_time = ros::Time::now() + ros::Duration((double)(this_message_time - last_time_stamp)/1000000);
+		last_time_stamp = this_time_stamp; // to initialize the thing and not give an absurd amount of time delay on first duration period
+	    //ROS_INFO_STREAM(this_time_stamp); //microssecond
+	    
+	    //the attempt to correct receiving 4 messages at the same time, however sometimes it messes it up. so removing for now!
+	    //auto fake_time = ros::Time::now() + ros::Duration((double)(this_time_stamp - last_time_stamp)/1000000);
 	    
 	    geometry_msgs::TransformStamped transformStamped;
-	    transformStamped.header.stamp = fake_time;
+	    transformStamped.header.stamp = ros::Time::now();
+	    //transformStamped.header.stamp = fake_time;
 	    /*transformStamped.header.frame_id = "map";
 	    transformStamped.child_frame_id = "ximu3";*/
 	    transformStamped.header.frame_id = parent_frame_id;
 	    transformStamped.child_frame_id = child_frame_id;
-	    transformStamped.transform.rotation.x = message.x_element;
-	    transformStamped.transform.rotation.y = message.y_element;
-	    transformStamped.transform.rotation.z = message.z_element;
-	    transformStamped.transform.rotation.w = message.w_element;
+	    if (!q_cal)
+	    {
+		ROS_INFO_STREAM(XIMU3_quaternion_message_to_string(message) );
+		    q_cal = tf2::Quaternion{message.x_element, message.y_element, message.z_element, message.w_element};
+	    }
+	    tf2::Quaternion r{message.x_element, message.y_element, message.z_element, message.w_element};
+	    /*ROS_INFO_STREAM("current q_cal: " 
+			    << q_cal.getX() << " , "
+			    << q_cal.getY() << " , " 
+			    << q_cal.getZ() << " , " 
+			    << q_cal.getW() );*/
+	    transformStamped.transform.rotation = tf2::toMsg(r*q_cal->inverse());
+	    //transformStamped.transform.rotation = tf2::toMsg(*q_cal*r);
+	    //transformStamped.transform.rotation = tf2::toMsg(q_cal->inverse()*r*( *q_cal));
+	    //transformStamped.transform.rotation = tf2::toMsg(*q_cal*r*q_cal->inverse());
+	    
+	    //transformStamped.transform.rotation.x = message.x_element;
+	    //transformStamped.transform.rotation.y = message.y_element;
+	    //transformStamped.transform.rotation.z = message.z_element;
+	    //transformStamped.transform.rotation.w = message.w_element;
 //	    transformStamped.transform.setOrigin(tf2::Vector3(0.5, 0.0, 0.0) );
 	    transformStamped.transform.translation.x = origin[0];	
 	    transformStamped.transform.translation.y = origin[1];	
@@ -202,6 +267,7 @@ private:
 	    imu_msg.header = transformStamped.header;
 	    imu_msg.orientation = transformStamped.transform.rotation;
 	    imu_pub.publish(imu_msg);
+	    ros::spinOnce();
 
     };
 
@@ -276,6 +342,24 @@ private:
         //       message.temperature);
         ROS_DEBUG_STREAM( XIMU3_temperature_message_to_string(message)); // alternative to above
 	std_msgs::Float32 temperature;
+	if (message.temperature > 60)
+	{
+		d_msg.level = diagnostic_msgs::DiagnosticStatus::ERROR;
+		da_msg.status.push_back(d_msg);
+		da_msg.header.stamp = ros::Time::now();
+		diags_pub.publish(da_msg);
+		ROS_FATAL("IMU TEMPERATURE TOO HIGH!!");
+		throw std::runtime_error("Temperature of IMU over 60C. Shutting off!!!");
+		std::exit(EXIT_FAILURE);
+	}
+	
+	if (message.temperature > 50)
+	{
+		d_msg.level = diagnostic_msgs::DiagnosticStatus::WARN;
+		da_msg.status.push_back(d_msg);
+		ROS_ERROR_STREAM("IMU has temperature of more than 50C!!!");
+	}
+
 	temperature.data = message.temperature;
 	temp_pub.publish(temperature);
 	ros::spinOnce();
@@ -292,7 +376,13 @@ private:
 	battery_percentage.data = message.percentage;
 	battery_voltage.data = message.voltage;
 	bat_pub.publish(battery_percentage);
-
+	
+	if(message.percentage < 30)
+	{
+		ROS_WARN_STREAM("Battery about to run out on IMU: " << imu_name);
+		d_msg.level = diagnostic_msgs::DiagnosticStatus::WARN;
+		da_msg.status.push_back(d_msg);
+	}
 	bat_v_pub.publish(battery_voltage);
 
         ROS_DEBUG_STREAM( XIMU3_battery_message_to_string(message)); // alternative to above
