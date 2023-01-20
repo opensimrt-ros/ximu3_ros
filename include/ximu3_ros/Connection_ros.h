@@ -61,6 +61,7 @@ public:
 		diags_pub = nh.advertise<diagnostic_msgs::DiagnosticArray>("/diagnostics",1);	
 		d_msg.name = imu_name;
 		da_msg.header.frame_id = parent_frame_id;
+		q_cal = {0.5,0.5,0.5,0.5};
 	}
 	void set_rate(unsigned int divisor)
 	{
@@ -236,9 +237,9 @@ private:
 	    transformStamped.child_frame_id = "ximu3";*/
 	    transformStamped.header.frame_id = parent_frame_id;
 	    transformStamped.child_frame_id = child_frame_id;
-	    if (!q_cal)
+	    if (false && !q_cal)
 	    {
-		ROS_INFO_STREAM(XIMU3_quaternion_message_to_string(message) );
+		ROS_WARN_STREAM("CALIBRATING QUATERNION!!" <<XIMU3_quaternion_message_to_string(message) );
 		    q_cal = tf2::Quaternion{message.x_element, message.y_element, message.z_element, message.w_element};
 	    }
 	    tf2::Quaternion r{message.x_element, message.y_element, message.z_element, message.w_element};
@@ -247,15 +248,19 @@ private:
 			    << q_cal.getY() << " , " 
 			    << q_cal.getZ() << " , " 
 			    << q_cal.getW() );*/
-	    transformStamped.transform.rotation = tf2::toMsg(r*q_cal->inverse());
-	    //transformStamped.transform.rotation = tf2::toMsg(*q_cal*r);
+	    
+	    //this seems incorrect. 
+	    //transformStamped.transform.rotation = tf2::toMsg(r*q_cal->inverse());
+	    transformStamped.transform.rotation = tf2::toMsg(r**q_cal);
 	    //transformStamped.transform.rotation = tf2::toMsg(q_cal->inverse()*r*( *q_cal));
 	    //transformStamped.transform.rotation = tf2::toMsg(*q_cal*r*q_cal->inverse());
-	    
-	    //transformStamped.transform.rotation.x = message.x_element;
-	    //transformStamped.transform.rotation.y = message.y_element;
-	    //transformStamped.transform.rotation.z = message.z_element;
-	    //transformStamped.transform.rotation.w = message.w_element;
+	    if (false)
+	    {
+	    transformStamped.transform.rotation.x = message.x_element;
+	    transformStamped.transform.rotation.y = message.y_element;
+	    transformStamped.transform.rotation.z = message.z_element;
+	    transformStamped.transform.rotation.w = message.w_element;
+	    }
 //	    transformStamped.transform.setOrigin(tf2::Vector3(0.5, 0.0, 0.0) );
 	    transformStamped.transform.translation.x = origin[0];	
 	    transformStamped.transform.translation.y = origin[1];	
