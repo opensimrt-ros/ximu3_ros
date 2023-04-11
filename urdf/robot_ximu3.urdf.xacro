@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<robot xmlns:xacro="http://ros.org/wiki/xacro" name="ximu3">
+	<xacro:include filename="ximu3.urdf.xacro" />
+	<xacro:ximu_link ximu3_name="$(arg ximu3_name)" />
+
+</robot>
