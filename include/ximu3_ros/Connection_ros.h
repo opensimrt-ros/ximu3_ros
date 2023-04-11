@@ -71,15 +71,27 @@ class Connection
 		void enable_magnetometer()
 		{
 			ROS_INFO_STREAM("Enabling magnetometer!");
-			const std::vector<std::string> heading_commands1 {"{\"ahrsIgnoreMagnetometer\":false}" };
+			const std::vector<std::string> heading_commands1 {"{\"ahrsIgnoreMagnetometer\":false}", "{\"ahrsAccelerationRejectionEnabled\":false}"};
 			connection->sendCommands(heading_commands1,2,500);
-
+			apply_save();
 		}
 		void disable_magnetometer()
 		{
 			ROS_INFO_STREAM("Disabling magnetometer!");
 			const std::vector<std::string> heading_commands1 {"{\"ahrsIgnoreMagnetometer\":true}" };
 			connection->sendCommands(heading_commands1,2,500);
+			apply_save();
+
+		}
+		void apply_save()
+		{
+			const std::vector<std::string> apply_commands { "{\"apply\":null}" };
+			connection->sendCommands(apply_commands, 2, 500);
+			ROS_DEBUG_STREAM("Applying command on IMU");
+			//sometimes it doesnt work without this? I dont want to test it. Maybe it can be removed.
+			const std::vector<std::string> save_command { "{\"save\":null}" };
+			connection->sendCommands(save_command, 2, 500);
+			ROS_DEBUG_STREAM("Saving settings on IMU EEPROM");
 
 		}
 		bool set_heading_DOESNT_WORK(std_srvs::Empty::Request & req,
