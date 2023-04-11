@@ -40,4 +40,15 @@
 			</collision>
 		</link>
 	</xacro:macro>
+	<xacro:macro name="ximu_joint" params="ximu3_name parent">
+		<joint name="${ximu3_name}_joint" type="fixed">
+			<origin xyz="0 0 1" rpy="0 0 0"/>
+			<parent link="${parent}"/>
+			<child link="${ximu3_name}"/>
+		</joint>
+	</xacro:macro>
+	<xacro:macro name="ximu_link_and_joint" params="parent">
+		<xacro:ximu_link ximu3_name="${parent}_imu"/>
+		<xacro:ximu_joint ximu3_name="${parent}_imu" parent="${parent}"/>
+	</xacro:macro>
 </robot>
