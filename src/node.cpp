@@ -106,9 +106,10 @@ int main(int argc, char** argv)
 	}
 	imu_pub = nh.advertise<sensor_msgs::Imu>("imu",1);
 	
+	bool do_calib = false;
+	nh.getParam("do_calibration", do_calib);
 
-	Connection c( parent_frame_id, own_tf_name, ahrs_divisor_rate, origin, temp_pub, bat_pub, bat_v_pub, imu_pub, publish_status, nh);
-
+	Connection c( parent_frame_id, own_tf_name, ahrs_divisor_rate, origin, temp_pub, bat_pub, bat_v_pub, imu_pub, publish_status, nh, do_calib);
 	//c.run(ximu3::UdpConnectionInfo("192.168.1.1", 9000, 8001));	
 	c.run(ximu3::UdpConnectionInfo(ip_address, receive_port, send_port));	
 	return 0;
