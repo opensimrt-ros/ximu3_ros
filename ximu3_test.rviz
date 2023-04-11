@@ -64,7 +64,7 @@ Visualization Manager:
         Expand Link Details: false
         Expand Tree: false
         Link Tree Style: Links in Alphabetic Order
-        ximu3_test:
+        ximu3:
           Alpha: 1
           Show Axes: false
           Show Trail: false
@@ -76,14 +76,10 @@ Visualization Manager:
       Value: true
       Visual Enabled: true
     - Class: rviz/TF
-      Enabled: true
+      Enabled: false
       Frame Timeout: 15
       Frames:
         All Enabled: true
-        map:
-          Value: true
-        ximu3_test:
-          Value: true
       Marker Alpha: 1
       Marker Scale: 1
       Name: TF
@@ -91,11 +87,9 @@ Visualization Manager:
       Show Axes: true
       Show Names: true
       Tree:
-        map:
-          ximu3_test:
-            {}
+        {}
       Update Interval: 0
-      Value: true
+      Value: false
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
@@ -124,7 +118,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 4.248645305633545
+      Distance: 0.4133899509906769
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -132,17 +126,17 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: 0.5376129150390625
-        Y: -0.05324844270944595
-        Z: 0.9316380620002747
+        X: 0.03671428933739662
+        Y: -0.09317546337842941
+        Z: -0.008046611212193966
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.0453987680375576
+      Pitch: 0.4353989362716675
       Target Frame: <Fixed Frame>
-      Yaw: 1.735398530960083
+      Yaw: 1.4053987264633179
     Saved: ~
 Window Geometry:
   Displays:

@@ -8,7 +8,7 @@
 	<arg name="send_port" 		default="8001" />
 	<arg name="receive_port" 	default="9000" />
 	<arg name="do_calibration" 	default="false" />
-	
+	<arg name="show_visuals"	default="true" />
 	<!-- ahrs_divisor
 		0 .. disabled
 		1 .. 400 hz
@@ -30,6 +30,10 @@
 		<param name="ahrs_divisor"	value="$(arg ahrs_divisor)" />
 		<param name="do_calibration"	value="$(arg do_calibration)" />
         </node>
+	<group if="$(arg show_visuals)">
+		<param name="robot_description" command="$(find xacro)/xacro $(find ximu3_ros)/urdf/robot_ximu3.urdf.xacro ximu3_name:=$(arg name)"/>
+		<node name="rviz" pkg="rviz" type="rviz" args="-d $(find ximu3_ros)/ximu3_test.rviz" />
 
+	</group>
 </launch>
 
