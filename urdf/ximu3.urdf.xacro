@@ -26,7 +26,7 @@
 						filename="package://ximu3_ros/meshes/housing_s.stl" />
 				</geometry>
 				<material name="">
-					<color	rgba="0.7921 0.8196 0.9333 1" />
+					<color	rgba="0.92 0.2 0.2 1" />
 				</material>
 			</visual>
 			<collision>
@@ -40,15 +40,26 @@
 			</collision>
 		</link>
 	</xacro:macro>
-	<xacro:macro name="ximu_joint" params="ximu3_name parent">
-		<joint name="${ximu3_name}_joint" type="fixed">
-			<origin xyz="0 0 1" rpy="0 0 0"/>
+	<xacro:macro name="ximu_joint_floating" params="ximu3_name parent origin">
+		<joint name="${ximu3_name}_joint" type="floating">
+			<origin xyz="${origin}" rpy="0 0 0"/>
 			<parent link="${parent}"/>
 			<child link="${ximu3_name}"/>
 		</joint>
 	</xacro:macro>
-	<xacro:macro name="ximu_link_and_joint" params="parent">
+	<xacro:macro name="ximu_joint" params="ximu3_name parent origin">
+		<joint name="${ximu3_name}_joint" type="fixed">
+			<origin xyz="${origin}" rpy="0 0 0"/>
+			<parent link="${parent}"/>
+			<child link="${ximu3_name}"/>
+		</joint>
+	</xacro:macro>
+	<xacro:macro name="ximu_link_and_joint" params="parent origin">
 		<xacro:ximu_link ximu3_name="${parent}_imu"/>
-		<xacro:ximu_joint ximu3_name="${parent}_imu" parent="${parent}"/>
+		<xacro:ximu_joint ximu3_name="${parent}_imu" parent="${parent}" origin="${origin}"/>
+	</xacro:macro>
+	<xacro:macro name="ximu_link_and_joint_floating" params="parent origin">
+		<xacro:ximu_link ximu3_name="${parent}_imu"/>
+		<xacro:ximu_joint_floating ximu3_name="${parent}_imu" parent="${parent}" origin="${origin}"/>
 	</xacro:macro>
 </robot>
