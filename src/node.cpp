@@ -6,6 +6,30 @@
 #include "ros/ros.h"
 #include "std_msgs/Float32.h"
 
+int get_divisor(std::string param_name,ros::NodeHandle nh)
+{
+	int divisor_rate;
+	if (nh.getParam(param_name + "_divisor", divisor_rate))
+	{
+		if (divisor_rate > 0)
+		{		
+			ROS_INFO_STREAM("Setting" << param_name << " divisor rate to:"<< divisor_rate);
+			ROS_INFO_STREAM("Will publish "<< param_name <<" at rate of: " << 400.0/divisor_rate);
+		}
+		else
+		{
+			ROS_ERROR_STREAM(param_name << " divisor set to zero disables the XXX. No YYYY will be published. Are you sure this is what you want?");
+		}
+	}
+	else
+	{
+		divisor_rate = 8;
+		ROS_WARN_STREAM("Using default "<< param_name << " divisor rate: " << divisor_rate );
+	}
+
+	return divisor_rate; 
+}
+
 int main(int argc, char** argv)
 {
 
@@ -71,24 +95,8 @@ int main(int argc, char** argv)
 		//ROS_WARN("Make sure port is unique and exposed in docker (both dockerfile and command line call!)");
 	}
 	
-	int ahrs_divisor_rate;
-	if (nh.getParam("ahrs_divisor", ahrs_divisor_rate))
-	{
-		if (ahrs_divisor_rate > 0)
-		{		
-			ROS_INFO("Setting AHRS divisor rate to: %d", ahrs_divisor_rate);
-			ROS_INFO_STREAM("Will publish TFs at rate of: " << 400.0/ahrs_divisor_rate);
-		}
-		else
-		{
-			ROS_ERROR_STREAM("AHRS divisor set to zero disables the AHRS. No Quaternions will be published. Are you sure this is what you want?");
-		}
-	}
-	else
-	{
-		ahrs_divisor_rate = 8;
-		ROS_WARN("Using default AHRS divisor rate: %d", ahrs_divisor_rate );
-	}
+	int ahrs_divisor_rate = get_divisor("ahrs", nh);
+	int sensors_divisor_rate = get_divisor("sensor", nh);
 
 	nh.getParam("origin", origin);
 	if (origin.size() == 0)
@@ -109,7 +117,7 @@ int main(int argc, char** argv)
 	bool do_calib = false;
 	nh.getParam("do_calibration", do_calib);
 
-	Connection c( parent_frame_id, own_tf_name, ahrs_divisor_rate, origin, temp_pub, bat_pub, bat_v_pub, imu_pub, publish_status, nh, do_calib);
+	Connection c( parent_frame_id, own_tf_name, ahrs_divisor_rate, sensors_divisor_rate, origin, temp_pub, bat_pub, bat_v_pub, imu_pub, publish_status, nh, do_calib);
 	//c.run(ximu3::UdpConnectionInfo("192.168.1.1", 9000, 8001));	
 	c.run(ximu3::UdpConnectionInfo(ip_address, receive_port, send_port));	
 	return 0;

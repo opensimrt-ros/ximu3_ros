@@ -15,6 +15,7 @@
 #include <stdio.h>
 #include "geometry_msgs/PoseStamped.h"
 #include "ros/ros.h"
+#include <string>
 #include <tf2/LinearMath/Quaternion.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 #include <tf2_ros/transform_broadcaster.h>
@@ -59,6 +60,7 @@ class Connection
 		std::string imu_name;
 		std::string parent_frame_id;
 		unsigned int my_divisor_rate = 8;
+		unsigned int my_other_divisor_rate = 8;
 		std::vector<double> origin;
 		std::optional<tf2::Quaternion> q_cal;
 		diagnostic_msgs::DiagnosticStatus d_msg;
@@ -119,7 +121,7 @@ class Connection
 		Connection(): child_frame_id("ximu3"), parent_frame_id("map"), my_divisor_rate(8)
 
 	{}
-		Connection(std::string parent_frame_id_, std::string child_frame_id_, unsigned int div, std::vector<double> origin_, ros::Publisher temp_pub_, ros::Publisher bat_pub_, ros::Publisher bat_v_pub_, ros::Publisher imu_pub_, bool publish_status_ , ros::NodeHandle nh, bool do_calibration_): do_calibration(do_calibration_), child_frame_id(child_frame_id_), parent_frame_id(parent_frame_id_), my_divisor_rate(div), origin(origin_), bat_pub(bat_pub_), bat_v_pub(bat_v_pub_), temp_pub(temp_pub_), publish_status(publish_status_), imu_pub(imu_pub_)
+		Connection(std::string parent_frame_id_, std::string child_frame_id_, unsigned int div, unsigned int div_sensors, std::vector<double> origin_, ros::Publisher temp_pub_, ros::Publisher bat_pub_, ros::Publisher bat_v_pub_, ros::Publisher imu_pub_, bool publish_status_ , ros::NodeHandle nh, bool do_calibration_): do_calibration(do_calibration_), child_frame_id(child_frame_id_), parent_frame_id(parent_frame_id_), my_divisor_rate(div), my_other_divisor_rate(div_sensors), origin(origin_), bat_pub(bat_pub_), bat_v_pub(bat_v_pub_), temp_pub(temp_pub_), publish_status(publish_status_), imu_pub(imu_pub_)
 	{
 		imu_name = child_frame_id; // maybe I should read something fancy here to better identify them
 		ROS_INFO("Parent frame_id set to %s", parent_frame_id.c_str());
@@ -135,10 +137,14 @@ class Connection
 			ROS_INFO_STREAM("No calibration.");
 		}
 	}
-		void set_rate(unsigned int divisor)
+		void set_rate()
 		{
 
-			const std::vector<std::string> rate_commands { "{\"inertialMessageRateDivisor\":0}", "{\"highGAccelerometerMessageRateDivisor\":0}","{\"ahrsMessageRateDivisor\":"+std::to_string(divisor)+"}" };
+			const std::vector<std::string> rate_commands { 
+				"{\"inertialMessageRateDivisor\":"+std::to_string(my_other_divisor_rate)+"}", 
+				"{\"highGAccelerometerMessageRateDivisor\":0}",
+				"{\"ahrsMessageRateDivisor\":"+std::to_string(my_divisor_rate)+"}" 
+			};
 			for (auto a:rate_commands)
 				ROS_DEBUG_STREAM("Setting command:" << a);
 			connection->sendCommands(rate_commands, 2, 500);
@@ -174,6 +180,7 @@ class Connection
 			{
 				connection->addQuaternionCallback(quaternionCallback);
 				connection->addNotificationCallback(notificationCallback);
+				connection->addInertialCallback(inertialCallback);
 				//status messages
 				if (publish_status)
 				{
@@ -191,7 +198,7 @@ class Connection
 			}
 			ROS_INFO_STREAM("Connection successful");
 
-			set_rate(my_divisor_rate);
+			set_rate();
 
 			//attempt at reading status of ahrs magnetometer. no worko.
 			//auto response_question_mark =(connection->sendCommands({"{\"ahrsIgnoreMagnetormeter\":null}"}, 1,1));
@@ -244,6 +251,7 @@ class Connection
 		}
 
 	private:
+		sensor_msgs::Imu imu_msg;
 
 		std::function<void(ximu3::XIMU3_DecodeError error)> decodeErrorCallback = [](auto decode_error)
 		{
@@ -263,8 +271,9 @@ class Connection
 			ROS_DEBUG_STREAM( XIMU3_statistics_to_string(statistics)); // alternative to above
 		};
 
-		std::function<void(ximu3::XIMU3_InertialMessage message)> inertialCallback = [](auto message)
+		std::function<void(ximu3::XIMU3_InertialMessage message)> inertialCallback = [this](auto message)
 		{
+			if (false)
 			printf(TIMESTAMP_FORMAT FLOAT_FORMAT " deg/s" FLOAT_FORMAT " deg/s" FLOAT_FORMAT " deg/s" FLOAT_FORMAT " g" FLOAT_FORMAT " g" FLOAT_FORMAT " g\n",
 					message.timestamp,
 					message.gyroscope_x,
@@ -274,6 +283,16 @@ class Connection
 					message.accelerometer_y,
 					message.accelerometer_z);
 			// std::cout << XIMU3_inertial_message_to_string(message) << std::endl; // alternative to above
+		
+			imu_msg.angular_velocity.x = message.gyroscope_x;
+			imu_msg.angular_velocity.y = message.gyroscope_y;
+			imu_msg.angular_velocity.z = message.gyroscope_z;
+			
+
+			imu_msg.linear_acceleration.x = message.accelerometer_x;
+			imu_msg.linear_acceleration.y = message.accelerometer_y;
+			imu_msg.linear_acceleration.z = message.accelerometer_z;
+			
 		};
 
 		std::function<void(ximu3::XIMU3_MagnetometerMessage message)> magnetometerCallback = [](auto message)
@@ -362,7 +381,6 @@ class Connection
 
 			br.sendTransform(transformStamped);
 
-			sensor_msgs::Imu imu_msg;
 			imu_msg.header = transformStamped.header;
 			imu_msg.orientation = transformStamped.transform.rotation;
 			imu_pub.publish(imu_msg);
