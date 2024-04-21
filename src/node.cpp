@@ -158,10 +158,12 @@ int main(int argc, char** argv)
 		ROS_WARN_STREAM("Running dummy_publisher!!! Not attempting to connect to imu: "<<own_tf_name);
 		ros::Rate rr(400.0/ahrs_divisor_rate);
 
+		//this is missing the tfs...
 		while(ros::ok())
 		{
 			sensor_msgs::Imu imu_msg;
 			imu_msg.header.stamp = ros::Time::now();
+			imu_msg.header.frame_id = parent_frame_id;
 			imu_pub.publish(imu_msg);
 			rr.sleep();
 			ros::spinOnce();
