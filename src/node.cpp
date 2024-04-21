@@ -164,6 +164,7 @@ int main(int argc, char** argv)
 			sensor_msgs::Imu imu_msg;
 			imu_msg.header.stamp = ros::Time::now();
 			imu_msg.header.frame_id = parent_frame_id;
+			imu_msg.orientation.w =1; // so that it isnt an unnormalized quaternion
 			imu_pub.publish(imu_msg);
 			rr.sleep();
 			ros::spinOnce();
