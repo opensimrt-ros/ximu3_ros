@@ -2,6 +2,7 @@
 #include "ros/node_handle.h"
 #include "ros/publisher.h"
 #include "ros/rate.h"
+#include "ros/service_server.h"
 #include "ros/spinner.h"
 #include "ros/time.h"
 #include "sensor_msgs/Imu.h"
@@ -127,7 +128,6 @@ int main(int argc, char** argv)
 	bool wait_to_start = false;
 	nh.getParam("wait_to_start", wait_to_start);
 
-
 	if (wait_to_start)
 	{
 		ros::Rate wait_rate(0.1);
@@ -139,7 +139,7 @@ int main(int argc, char** argv)
 		};
 		//create a service, wait for that service call to change state so we can start
 		//
-		nh.advertiseService("start_now", wait_callback);
+		ros::ServiceServer ss = nh.advertiseService("start_now", wait_callback);
 
 		ROS_WARN("not_tested");
 		while (!start_now)
@@ -151,7 +151,7 @@ int main(int argc, char** argv)
 	}
 
 
-	bool dummy_publisher=true;
+	bool dummy_publisher=false;
 	nh.getParam("dummy_publisher", dummy_publisher);
 	if (dummy_publisher)
 	{

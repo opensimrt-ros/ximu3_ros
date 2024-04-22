@@ -345,7 +345,7 @@ class Connection
 			transformStamped.child_frame_id = child_frame_id;
 			if (do_calibration && !q_cal)
 			{
-				ROS_WARN_STREAM("WARNING: EXPERIMENTAL!");
+				ROS_WARN_STREAM("WARNING: EXPERIMENTAL! You may want to just fix the Yaw here, instead of the whole inverse tf...");
 
 				ROS_WARN_STREAM("CALIBRATING QUATERNION!!" <<XIMU3_quaternion_message_to_string(message) );
 				q_cal = tf2::Quaternion{message.x_element, message.y_element, message.z_element, message.w_element};
