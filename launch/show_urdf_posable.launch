@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
+
+<launch>
+	
+	<param name="robot_description" command="$(find xacro)/xacro $(find ximu3_ros)/urdf/robot_ximu3_posable.urdf.xacro ximu3_name:=ximu3_test"/>
+
+	<node name="spawn_urdf" pkg="gazebo_ros" type="spawn_model" args="-file $(find ximu3_ros)/ximu3.urdf -urdf -x 0 -y 0 -z 0 -model model_generic" />
+	<node name="rviz" pkg="rviz" type="rviz" args="-d $(find ximu3_ros)/ximu3_test.rviz" />
+	<node pkg="tf" type="static_transform_publisher" name="ximu3_fixed_link_broadcaster" args="0 0 1 0 0 0 map ximu3_test_base 10" />
+
+	<include file="$(find gait1992_description)/launch/gui.launch"/>
+	<include file="$(find gait1992_description)/launch/human_state_pub.launch">
+	</include>
+
+</launch>

@@ -1,6 +1,6 @@
-<?xml version="1.0" encoding="utf-8"?>
+<?xml version="0.0" encoding="utf-8"?>
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro">
-	<xacro:macro name="ximu_link" params="ximu3_name">
+	<xacro:macro name="ximu_link" params="ximu3_name color:='0.92 0.2 0.2 1'">
 		<link name="${ximu3_name}" >
 			<inertial>
 
@@ -26,16 +26,15 @@
 						filename="package://ximu3_ros/meshes/housing_s.stl" />
 				</geometry>
 				<material name="">
-					<color	rgba="0.92 0.2 0.2 1" />
+					<color	rgba="${color}" />
 				</material>
 			</visual>
 			<collision>
 				<origin
-					xyz="0 0 0"
+					xyz="0.003 0 -0.002"
 					rpy="0 0 0" />
 				<geometry>
-					<mesh
-						filename="package://ximu3_ros/meshes/housing_s.stl" />
+					<box size=".058 .05 .015" />
 				</geometry>
 			</collision>
 		</link>
@@ -57,9 +56,26 @@
 	<xacro:macro name="ximu_link_and_joint" params="parent origin">
 		<xacro:ximu_link ximu3_name="${parent}_imu"/>
 		<xacro:ximu_joint ximu3_name="${parent}_imu" parent="${parent}" origin="${origin}"/>
+		<xacro:ximu_sensor parent="${parent}"/>
 	</xacro:macro>
 	<xacro:macro name="ximu_link_and_joint_floating" params="parent origin">
 		<xacro:ximu_link ximu3_name="${parent}_imu"/>
 		<xacro:ximu_joint_floating ximu3_name="${parent}_imu" parent="${parent}" origin="${origin}"/>
+		<xacro:ximu_sensor parent="${parent}"/>
 	</xacro:macro>
+	<xacro:macro name="ximu_sensor" params="parent">
+		<sensor name="${parent}_sensor" update_rate="1" type="imu">
+			<origin xyz="0 0 0" rpy="0 0 0"/>
+			<imu>
+			</imu>
+		</sensor>
+	</xacro:macro>
+	
+	<xacro:macro name="ximu_cal" params="parent origin">
+		<xacro:ximu_link ximu3_name="${parent}_0" color="0.2 0.2 0.2 1"/>
+		
+		<xacro:ximu_joint ximu3_name="${parent}_0" parent="${parent}_base" origin="${origin}" />
+	</xacro:macro>
+
+
 </robot>

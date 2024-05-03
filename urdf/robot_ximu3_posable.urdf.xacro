@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<robot xmlns:xacro="http://ros.org/wiki/xacro" name="ximu3">
+	<xacro:include filename="ximu3.urdf.xacro" />
+	<xacro:ximu_link ximu3_name="$(arg ximu3_name)" />
+		<link name="$(arg ximu3_name)_base"/>
+	
+		<joint name="$(arg ximu3_name)_yaw_joint" type="continuous">
+			<origin xyz="0 0 0" rpy="0 0 0"/>
+			<parent link="$(arg ximu3_name)_base"/>
+        		<axis xyz=" 0.00000000  0.00000000  1.00000000"/> 
+			<child link="$(arg ximu3_name)_y_link"/>
+        <limit effort="100.0" velocity="100.0" /> 
+		</joint>
+		<link name="$(arg ximu3_name)_y_link"/>
+		
+		<joint name="$(arg ximu3_name)_pitch_joint" type="continuous">
+			<origin xyz="0 0 0" rpy="0 0 0"/>
+			<parent link="$(arg ximu3_name)_y_link"/>
+        		<axis xyz=" 0.00000000  1.00000000  0.00000000"/> 
+			<child link="$(arg ximu3_name)_p_link"/>
+        <limit effort="100.0" velocity="100.0" /> 
+		</joint>
+		<link name="$(arg ximu3_name)_p_link"/>
+		
+		<joint name="$(arg ximu3_name)_r_joint" type="continuous">
+			<origin xyz="0 0 0" rpy="0 0 0"/>
+			<parent link="$(arg ximu3_name)_p_link"/>
+        		<axis xyz=" 1.00000000  0.00000000  0.00000000"/> 
+			<child link="$(arg ximu3_name)"/>
+        <limit effort="100.0" velocity="100.0" /> 
+		</joint>
+	<xacro:ximu_cal parent="$(arg ximu3_name)" origin="0 0 0 " />
+
+</robot>
