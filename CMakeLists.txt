@@ -24,8 +24,8 @@ include_directories(
   ${catkin_INCLUDE_DIRS}
 )
 
-add_executable(main src/main.cpp)
-add_executable(${PROJECT_NAME}_discovery src/node_discovery.cpp)
+#add_executable(main src/main.cpp)
+#add_executable(${PROJECT_NAME}_discovery src/node_discovery.cpp)
 add_executable(imu_node src/node.cpp)
 
 
@@ -45,7 +45,7 @@ endif ()
 
 #add_dependencies(${PROJECT_NAME}_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS} )
 
-target_link_libraries(main PRIVATE ${XIMU3} pthread dl m udev)
-target_link_libraries(${PROJECT_NAME}_discovery PRIVATE ${XIMU3} pthread dl m udev ${DEPENDENCY_LIBRARIES} ${catkin_LIBRARIES})
+#target_link_libraries(main PRIVATE ${XIMU3} pthread dl m udev)
+#target_link_libraries(${PROJECT_NAME}_discovery PRIVATE ${XIMU3} pthread dl m udev ${DEPENDENCY_LIBRARIES} ${catkin_LIBRARIES})
 target_link_libraries(imu_node PRIVATE ${XIMU3} pthread dl m udev ${DEPENDENCY_LIBRARIES} ${catkin_LIBRARIES})
 
