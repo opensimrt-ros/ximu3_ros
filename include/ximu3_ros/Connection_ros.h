@@ -1,5 +1,6 @@
 #pragma once
 
+#include "ros/duration.h"
 #include "ros/init.h"
 #include "ros/publisher.h"
 #include "ros/rate.h"
@@ -10,8 +11,10 @@
 #include "ximu3_ros/Connection.hpp"
 #include "ximu3_ros/Ximu3.hpp"
 #include "ximu3_ros/Helpers_api.hpp"
+#include <chrono>
 #include <inttypes.h> // PRIu64
 #include <iostream>
+#include <ostream>
 #include <stdio.h>
 #include "geometry_msgs/PoseStamped.h"
 #include "ros/ros.h"
@@ -26,6 +29,9 @@
 #include "sensor_msgs/Imu.h"
 #include "diagnostic_msgs/DiagnosticStatus.h"
 #include "diagnostic_msgs/DiagnosticArray.h"
+
+#include <limits>
+constexpr int32_t max_int32 = std::numeric_limits<int32_t>::max();
 
 
 #define TIMESTAMP_FORMAT "%8" PRIu64 " us"
@@ -46,6 +52,7 @@ class ConnectionParams
 		bool do_calibration = true;
 };
 
+
 class Connection
 {
 	public:
@@ -53,8 +60,10 @@ class Connection
 		tf2_ros::TransformBroadcaster br;
 		//protected:
 		ros::WallTime last_time;
+		ros::WallTime initial_time;
 		uint64_t last_time_stamp = 0;
 		uint64_t this_time_stamp = 0;
+		uint64_t initial_time_stamp = 0;
 		ximu3::Connection* connection;
 		std::string child_frame_id;
 		std::string imu_name;
@@ -68,6 +77,7 @@ class Connection
 		//tf2::Quaternion q_cal{0,0,0,1};
 		bool publish_status;
 		bool do_calibration = true;
+		bool use_imu_time_stamps = true;
 		ros::Publisher bat_pub, bat_v_pub, temp_pub, imu_pub, diags_pub;
 		ros::ServiceServer set_heading_srv;
 		void enable_magnetometer()
@@ -121,7 +131,7 @@ class Connection
 		Connection(): child_frame_id("ximu3"), parent_frame_id("map"), my_divisor_rate(8)
 
 	{}
-		Connection(std::string parent_frame_id_, std::string child_frame_id_, unsigned int div, unsigned int div_sensors, std::vector<double> origin_, ros::Publisher temp_pub_, ros::Publisher bat_pub_, ros::Publisher bat_v_pub_, ros::Publisher imu_pub_, bool publish_status_ , ros::NodeHandle nh, bool do_calibration_): do_calibration(do_calibration_), child_frame_id(child_frame_id_), parent_frame_id(parent_frame_id_), my_divisor_rate(div), my_other_divisor_rate(div_sensors), origin(origin_), bat_pub(bat_pub_), bat_v_pub(bat_v_pub_), temp_pub(temp_pub_), publish_status(publish_status_), imu_pub(imu_pub_)
+		Connection(std::string parent_frame_id_, std::string child_frame_id_, unsigned int div, unsigned int div_sensors, std::vector<double> origin_, ros::Publisher temp_pub_, ros::Publisher bat_pub_, ros::Publisher bat_v_pub_, ros::Publisher imu_pub_, bool publish_status_ , ros::NodeHandle nh, bool do_calibration_, bool use_imu_time_stamp_):use_imu_time_stamps(use_imu_time_stamp_), do_calibration(do_calibration_), child_frame_id(child_frame_id_), parent_frame_id(parent_frame_id_), my_divisor_rate(div), my_other_divisor_rate(div_sensors), origin(origin_), bat_pub(bat_pub_), bat_v_pub(bat_v_pub_), temp_pub(temp_pub_), publish_status(publish_status_), imu_pub(imu_pub_)
 	{
 		imu_name = child_frame_id; // maybe I should read something fancy here to better identify them
 		ROS_INFO("Parent frame_id set to %s", parent_frame_id.c_str());
@@ -161,7 +171,8 @@ class Connection
 		void run(const ximu3::ConnectionInfo& connectionInfo)
 		{
 			ros::Rate r(1);
-			last_time = ros::WallTime::now();
+			initial_time = ros::WallTime::now();
+			last_time = initial_time;
 			//ros::NodeHandle n;
 			//poser_pub = n.advertise<geometry_msgs::PoseStamped>("poser", 1000);
 
@@ -305,8 +316,40 @@ class Connection
 			// std::cout << XIMU3_magnetometer_message_to_string(message) << std::endl; // alternative to above
 		};
 
+		ros::WallTime get_estimated_imu_time(uint64_t message_time)
+		{
+		//TODO: doing this using uint64_ts and converting to int32_t for WallDuration was too hard for me, so we are just going to live with an implementation using double. I hope I am not adding too much noise here. Fix this if you want to deal with carries and other things.- maybe there is an easier way with creating an empty duration and then setting it with fromNsecs, well, too late now. 
+
+		double k = 1e-6; // ????
+		auto current_time = ros::WallTime::now();
+		ros::WallTime res;
+		//std::cout << "message_time: " << message_time << std::endl;
+		if (initial_time_stamp == 0 || current_time == initial_time) // in case the elapsed time was zero, to avoid a divide by zero 
+		{
+			initial_time_stamp = message_time; 
+			initial_time = ros::WallTime::now();
+			res = initial_time; 
+		}
+		else // we initialized the initial time, so now we need to make a simple conversion
+		{
+		
+			double elapsed_time = k * (message_time - initial_time_stamp); // in ns
+			//std::cout << "I might be wrong: " << elapsed_time << "[s]"  << std::endl;
+
+			ros::WallTime complete_time = initial_time + ros::WallDuration(elapsed_time);
+
+			res = complete_time;
+
+		}
+
+
+		return res;
+		}
+
+
 		std::function<void(ximu3::XIMU3_QuaternionMessage message)> quaternionCallback = [this](auto message)
 		{
+			std::chrono::time_point c1= std::chrono::high_resolution_clock::now();
 			ros::WallTime this_time = ros::WallTime::now();
 			double execution_time = (this_time - last_time).toNSec()*1e-6;
 			last_time = this_time;
@@ -335,16 +378,27 @@ class Connection
 
 								   //the attempt to correct receiving 4 messages at the same time, however sometimes it messes it up. so removing for now!
 								   //auto fake_time = ros::Time::now() + ros::Duration((double)(this_time_stamp - last_time_stamp)/1000000);
+			auto estimate_time = get_estimated_imu_time(this_time_stamp);
 
 			geometry_msgs::TransformStamped transformStamped;
-			transformStamped.header.stamp = ros::Time::now();
+			ros::Time some_time;
+			if (use_imu_time_stamps)
+				some_time.fromNSec(estimate_time.toNSec());
+			else
+				some_time = ros::Time::now();
+			transformStamped.header.stamp = some_time;
 			//transformStamped.header.stamp = fake_time;
 			/*transformStamped.header.frame_id = "map";
 			  transformStamped.child_frame_id = "ximu3";*/
 			transformStamped.header.frame_id = parent_frame_id;
 			transformStamped.child_frame_id = child_frame_id;
+
+			//ROS_INFO_STREAM("time now" << transformStamped.header.stamp << " estimated_time" << estimate_time << "difference: " << (transformStamped.header.stamp.toSec() - estimate_time.toSec()) << "[s] ");
+
 			if (do_calibration && !q_cal)
-			{
+			{  // TODO: test if this is actually correct, and that is a big if. but if it is, then we can probably make this function into a service call, 
+			   // make it receive some tf, maybe you can specify it by name
+			   // and then this will calibrate the imu to have a new "starting" point, as in, it could be calibrated in place, say with an ar marker
 				ROS_WARN_STREAM("WARNING: EXPERIMENTAL! You may want to just fix the Yaw here, instead of the whole inverse tf...");
 
 				ROS_WARN_STREAM("CALIBRATING QUATERNION!!" <<XIMU3_quaternion_message_to_string(message) );
@@ -385,6 +439,8 @@ class Connection
 			imu_msg.orientation = transformStamped.transform.rotation;
 			imu_pub.publish(imu_msg);
 			ros::spinOnce();
+			std::chrono::time_point c2= std::chrono::high_resolution_clock::now();
+			ROS_INFO_STREAM("loop time: "<< std::chrono::duration_cast<std::chrono::microseconds>(c2-c1).count()<<"[us]");
 
 		};
 

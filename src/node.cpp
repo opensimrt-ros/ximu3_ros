@@ -128,6 +128,19 @@ int main(int argc, char** argv)
 	bool wait_to_start = false;
 	nh.getParam("wait_to_start", wait_to_start);
 
+	bool use_imu_time_stamps = true;
+	nh.getParam("use_imu_time_stamps", use_imu_time_stamps);
+	if (use_imu_time_stamps)
+	{
+		ROS_WARN("Using XIMU internal clock to publish ros timestamps. Note: you probably also want to add some offset to guarantee that no timestamp is in the future. If this fails, you know why. I am not sure what this offset should be, maybe 10 ms or maybe 10ms - 1/2*the period of the thing being read?");
+	}
+	else
+	{
+		ROS_WARN("Using PC clock for stamping messages. Note: This was not documented in the first versions of the XIMU3 manual, but the highest transmission rate is 100Hz.  In this mode you cannot run anything at higher rates than 100Hz, because you get them at the same time in a burst. ");
+	}
+
+
+	ROS_DEBUG_STREAM("before you get mad at me that the imu messages are not being published at 400 hz when you may set it to 400 hz, currently the way that it is being done is that, only when each time you get new linear speeds and gyro messages are received that you publish a new imu_msg. You could maybe try to publish always the most update one and do something fancy like having threads and updating a common latest message and then publishing that every time either one of the fields changed. This is left as an exercise to the reader.");
 	if (wait_to_start)
 	{
 		ros::Rate wait_rate(0.1);
@@ -172,7 +185,7 @@ int main(int argc, char** argv)
 	}
 	else
 	{
-		Connection c( parent_frame_id, own_tf_name, ahrs_divisor_rate, sensors_divisor_rate, origin, temp_pub, bat_pub, bat_v_pub, imu_pub, publish_status, nh, do_calib);
+		Connection c( parent_frame_id, own_tf_name, ahrs_divisor_rate, sensors_divisor_rate, origin, temp_pub, bat_pub, bat_v_pub, imu_pub, publish_status, nh, do_calib, use_imu_time_stamps);
 		//c.run(ximu3::UdpConnectionInfo("192.168.1.1", 9000, 8001));
 		c.run(ximu3::UdpConnectionInfo(ip_address, receive_port, send_port));
 	}

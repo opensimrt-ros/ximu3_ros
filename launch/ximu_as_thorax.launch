@@ -8,6 +8,7 @@
 	<arg name="send_port" 		default="8011" />
 	<arg name="receive_port" 	default="9011" />
 	<arg name="do_calibration" 	default="true" />
+	<arg name="use_imu_time_stamps" 	default="true" />
 	
 	<!-- ahrs_divisor
 		0 .. disabled
@@ -29,6 +30,7 @@
 		<param name="ip_address"	value="$(arg ip_address)" />
 		<param name="ahrs_divisor"	value="$(arg ahrs_divisor)" />
 		<param name="do_calibration"	value="$(arg do_calibration)" />
+		<param name="use_imu_time_stamps"	value="$(arg use_imu_time_stamps)" />
         </node>
 
 </launch>
