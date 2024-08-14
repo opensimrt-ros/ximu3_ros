@@ -15,6 +15,7 @@
 #include <inttypes.h> // PRIu64
 #include <iostream>
 #include <ostream>
+#include <sstream>
 #include <stdio.h>
 #include "geometry_msgs/PoseStamped.h"
 #include "ros/ros.h"
@@ -58,6 +59,7 @@ class Connection
 	public:
 		//ros::Publisher poser_pub;
 		tf2_ros::TransformBroadcaster br;
+		float time_delay_monitor, battery_percentage_monitor;
 		//protected:
 		ros::WallTime last_time;
 		ros::WallTime initial_time;
@@ -248,6 +250,9 @@ class Connection
 				}
 				else if (da_msg.status.size() <1){
 					d_msg.level = diagnostic_msgs::DiagnosticStatus::OK;
+					std::stringstream s;
+					s <<  std::fixed << std::setprecision(2) << "\tBat.(" << battery_percentage_monitor << ")\tDelay.("<< time_delay_monitor*1000 << "[ms])";
+					d_msg.message = s.str();
 					diagnostic_msgs::DiagnosticArray a_diags_msg;
 					a_diags_msg.status.push_back(d_msg);
 					da_msg = a_diags_msg;
@@ -380,6 +385,7 @@ class Connection
 								   //auto fake_time = ros::Time::now() + ros::Duration((double)(this_time_stamp - last_time_stamp)/1000000);
 			auto estimate_time = get_estimated_imu_time(this_time_stamp);
 
+			time_delay_monitor = this_time.toSec() - estimate_time.toSec();
 			geometry_msgs::TransformStamped transformStamped;
 			ros::Time some_time;
 			if (use_imu_time_stamps)
@@ -440,7 +446,7 @@ class Connection
 			imu_pub.publish(imu_msg);
 			ros::spinOnce();
 			std::chrono::time_point c2= std::chrono::high_resolution_clock::now();
-			ROS_INFO_STREAM("loop time: "<< std::chrono::duration_cast<std::chrono::microseconds>(c2-c1).count()<<"[us]");
+			//ROS_INFO_STREAM("loop time: "<< std::chrono::duration_cast<std::chrono::microseconds>(c2-c1).count()<<"[us]");
 
 		};
 
@@ -547,6 +553,7 @@ class Connection
 			//       message.charging_status);
 			std_msgs::Float32 battery_percentage,battery_voltage;
 			battery_percentage.data = message.percentage;
+			battery_percentage_monitor = message.percentage;
 			battery_voltage.data = message.voltage;
 			bat_pub.publish(battery_percentage);
 

@@ -16,7 +16,7 @@
 		8 .. 50 hz
 	-->
 
-	<arg name="ahrs_divisor" 	default="1" />
+	<arg name="ahrs_divisor" 	default="4" />
 
 	<node pkg="ximu3_ros" type="imu_node" 	name="ximu_torso" output="screen">
 		<param name="name" 		value="$(arg tf_frame_prefix)/torso" />
