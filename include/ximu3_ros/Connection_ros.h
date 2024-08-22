@@ -364,9 +364,9 @@ class Connection
 
 		void calibration_int()
 		{
-			// TODO: test if this is actually correct, and that is a big if. but if it is, then we can probably make this function into a service call, 
+			// TODO:  
 			   // make it receive some tf, maybe you can specify it by name
-			   // and then this will calibrate the imu to have a new "starting" point, as in, it could be calibrated in place, say with an ar marker
+			   // and then this will calibrate the imu to have a new "starting" point, as in, it could be calibrated in place, say with an ar marker or inside the case
 				ROS_WARN_STREAM("WARNING: EXPERIMENTAL! You may want to just fix the Yaw here, instead of the whole inverse tf...");
 
 				ROS_WARN_STREAM("CALIBRATING QUATERNION!!" <<XIMU3_quaternion_message_to_string(qmessage) );
