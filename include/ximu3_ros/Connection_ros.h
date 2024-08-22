@@ -8,6 +8,7 @@
 #include "ros/time.h"
 #include "std_srvs/Empty.h"
 #include "tf2/convert.h"
+#include "tf2_ros/buffer.h"
 #include "ximu3_ros/Connection.hpp"
 #include "ximu3_ros/Ximu3.hpp"
 #include "ximu3_ros/Helpers_api.hpp"
@@ -23,6 +24,10 @@
 #include <tf2/LinearMath/Quaternion.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 #include <tf2_ros/transform_broadcaster.h>
+#include "tf2_ros/buffer.h"
+#include "tf2_ros/buffer_interface.h"
+#include "tf2_ros/transform_listener.h"
+
 #include <geometry_msgs/TransformStamped.h>
 #include <thread>
 #include "std_msgs/Float32.h"
@@ -59,6 +64,8 @@ class Connection
 	public:
 		//ros::Publisher poser_pub;
 		tf2_ros::TransformBroadcaster br;
+		tf2_ros::Buffer tfBuffer;
+		tf2_ros::TransformListener tfListener;
 		float time_delay_monitor, battery_percentage_monitor;
 		//protected:
 		ros::WallTime last_time;
@@ -70,6 +77,7 @@ class Connection
 		std::string child_frame_id;
 		std::string imu_name;
 		std::string parent_frame_id;
+		std::string calibration_frame_id;
 		unsigned int my_divisor_rate = 8;
 		unsigned int my_other_divisor_rate = 8;
 		std::vector<double> origin;
@@ -132,10 +140,11 @@ class Connection
 			connection->sendCommands(commands, 2, 500);
 			return true;
 		}
-		Connection(): child_frame_id("ximu3"), parent_frame_id("map"), my_divisor_rate(8)
+		Connection(): child_frame_id("ximu3"), parent_frame_id("map"), my_divisor_rate(8), tfListener(tfBuffer)
 
 	{}
-		Connection(std::string parent_frame_id_, std::string child_frame_id_, unsigned int div, unsigned int div_sensors, std::vector<double> origin_, ros::Publisher temp_pub_, ros::Publisher bat_pub_, ros::Publisher bat_v_pub_, ros::Publisher imu_pub_, bool publish_status_ , ros::NodeHandle nh, bool do_calibration_, bool use_imu_time_stamp_):use_imu_time_stamps(use_imu_time_stamp_), do_calibration(do_calibration_), child_frame_id(child_frame_id_), parent_frame_id(parent_frame_id_), my_divisor_rate(div), my_other_divisor_rate(div_sensors), origin(origin_), bat_pub(bat_pub_), bat_v_pub(bat_v_pub_), temp_pub(temp_pub_), publish_status(publish_status_), imu_pub(imu_pub_)
+		Connection(std::string calibration_frame_id_, std::string parent_frame_id_, std::string child_frame_id_, unsigned int div, unsigned int div_sensors, std::vector<double> origin_, ros::Publisher temp_pub_, ros::Publisher bat_pub_, ros::Publisher bat_v_pub_, ros::Publisher imu_pub_, bool publish_status_ , ros::NodeHandle nh, bool do_calibration_, bool use_imu_time_stamp_):use_imu_time_stamps(use_imu_time_stamp_), do_calibration(do_calibration_), child_frame_id(child_frame_id_), parent_frame_id(parent_frame_id_), my_divisor_rate(div), my_other_divisor_rate(div_sensors), origin(origin_), bat_pub(bat_pub_), bat_v_pub(bat_v_pub_), temp_pub(temp_pub_), publish_status(publish_status_), imu_pub(imu_pub_), calibration_frame_id(calibration_frame_id_), 
+		tfListener(tfBuffer)
 	{
 		imu_name = child_frame_id; // maybe I should read something fancy here to better identify them
 		ROS_INFO("Parent frame_id set to %s", parent_frame_id.c_str());
@@ -370,8 +379,18 @@ class Connection
 				ROS_WARN_STREAM("WARNING: EXPERIMENTAL! You may want to just fix the Yaw here, instead of the whole inverse tf...");
 
 				ROS_WARN_STREAM("CALIBRATING QUATERNION!!" <<XIMU3_quaternion_message_to_string(qmessage) );
-				q_cal = tf2::Quaternion{qmessage.x_element, qmessage.y_element, qmessage.z_element, qmessage.w_element};
+				auto q_measured = tf2::Quaternion{qmessage.x_element, qmessage.y_element, qmessage.z_element, qmessage.w_element};
+				auto Tt = tfBuffer.lookupTransform(parent_frame_id,calibration_frame_id,ros::Time(0));
 			
+				ROS_ERROR_STREAM("HARD CODED TRANSFORM FOR MAKING THE THING UPRIGHT! READ THE PARAM calibration_frame_id CHANGE IT TO PICK THIS FRAME FROM THE TF BUFFER ");
+				auto q_ref = tf2::Quaternion{0.7071067811865476, 0, -0.7071067811865476, 0};
+				ROS_INFO_STREAM("\tWhat I read: " << Tt.transform.rotation  << "\tWhat I create: "<<
+						"\n x: "<< q_ref.getX() <<
+						"\n y: "<< q_ref.getY() <<
+						"\n z: "<< q_ref.getZ() <<
+						"\n w: "<< q_ref.getW()
+						);
+				q_cal = q_ref*q_measured.inverse();
 
 			just_calibrated = true;
 			ROS_INFO_STREAM("done with calibration");
@@ -442,7 +461,7 @@ class Connection
 			  << q_cal.getW() );*/
 
 			//this seems correct. 
-											      transformStamped.transform.rotation = tf2::toMsg(q_cal->inverse()*r);
+											      transformStamped.transform.rotation = tf2::toMsg(q_cal.value()*r);
 
 			ROS_DEBUG_STREAM(transformStamped.transform.rotation);
 			if (false)
