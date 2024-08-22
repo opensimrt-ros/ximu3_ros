@@ -79,9 +79,11 @@ class Connection
 		//tf2::Quaternion q_cal{0,0,0,1};
 		bool publish_status;
 		bool do_calibration = true;
+		bool just_calibrated = false;
 		bool use_imu_time_stamps = true;
 		ros::Publisher bat_pub, bat_v_pub, temp_pub, imu_pub, diags_pub;
 		ros::ServiceServer set_heading_srv;
+		ximu3::XIMU3_QuaternionMessage qmessage;
 		void enable_magnetometer()
 		{
 			ROS_INFO_STREAM("Enabling magnetometer!");
@@ -172,7 +174,7 @@ class Connection
 		}
 		void run(const ximu3::ConnectionInfo& connectionInfo)
 		{
-			ros::Rate r(1);
+			ros::Rate r(5); // we wait at most 200ms to send diag messages and the strobe feedback for the calibration 
 			initial_time = ros::WallTime::now();
 			last_time = initial_time;
 			//ros::NodeHandle n;
@@ -217,9 +219,6 @@ class Connection
 			//auto response_question_mark =(connection->sendCommands({"{\"ahrsIgnoreMagnetormeter\":null}"}, 1,1));
 			//for (auto res_res:response_question_mark)
 			//	ROS_INFO_STREAM(res_res);
-			// Send command to strobe LED
-			const std::vector<std::string> commands { "{\"strobe\":null}" };
-			connection->sendCommands(commands, 2, 500);
 
 			// Close connection
 			//helpers::wait(-1);
@@ -261,9 +260,21 @@ class Connection
 				da_msg.header.stamp = ros::Time::now();
 				diags_pub.publish(da_msg);
 				da_msg.status.clear();
+			// Send command to strobe LED
+			if(just_calibrated) // I cant call the strobe from within a callback
+			{
+				const std::vector<std::string> commands { "{\"strobe\":null}" };
+				connection->sendCommands(commands, 2, 500);
+				just_calibrated = false;
+			}
 			}
 
 			connection->close();
+		}
+		bool calibrationSrv(std_srvs::Empty::Request &req, std_srvs::Empty::Response &res)
+		{
+			calibration_int();
+			return true;
 		}
 
 	private:
@@ -290,7 +301,7 @@ class Connection
 		std::function<void(ximu3::XIMU3_InertialMessage message)> inertialCallback = [this](auto message)
 		{
 			if (false)
-			printf(TIMESTAMP_FORMAT FLOAT_FORMAT " deg/s" FLOAT_FORMAT " deg/s" FLOAT_FORMAT " deg/s" FLOAT_FORMAT " g" FLOAT_FORMAT " g" FLOAT_FORMAT " g\n",
+				printf(TIMESTAMP_FORMAT FLOAT_FORMAT " deg/s" FLOAT_FORMAT " deg/s" FLOAT_FORMAT " deg/s" FLOAT_FORMAT " g" FLOAT_FORMAT " g" FLOAT_FORMAT " g\n",
 					message.timestamp,
 					message.gyroscope_x,
 					message.gyroscope_y,
@@ -351,6 +362,21 @@ class Connection
 		return res;
 		}
 
+		void calibration_int()
+		{
+			// TODO: test if this is actually correct, and that is a big if. but if it is, then we can probably make this function into a service call, 
+			   // make it receive some tf, maybe you can specify it by name
+			   // and then this will calibrate the imu to have a new "starting" point, as in, it could be calibrated in place, say with an ar marker
+				ROS_WARN_STREAM("WARNING: EXPERIMENTAL! You may want to just fix the Yaw here, instead of the whole inverse tf...");
+
+				ROS_WARN_STREAM("CALIBRATING QUATERNION!!" <<XIMU3_quaternion_message_to_string(qmessage) );
+				q_cal = tf2::Quaternion{qmessage.x_element, qmessage.y_element, qmessage.z_element, qmessage.w_element};
+			
+
+			just_calibrated = true;
+			ROS_INFO_STREAM("done with calibration");
+		}
+
 
 		std::function<void(ximu3::XIMU3_QuaternionMessage message)> quaternionCallback = [this](auto message)
 		{
@@ -401,14 +427,12 @@ class Connection
 
 			//ROS_INFO_STREAM("time now" << transformStamped.header.stamp << " estimated_time" << estimate_time << "difference: " << (transformStamped.header.stamp.toSec() - estimate_time.toSec()) << "[s] ");
 
+			//I need to pass this message to the service call, but I don't see how to do it in a way that makes sense, so I will set a shared qmessage and then read that
+			qmessage = message;
 			if (do_calibration && !q_cal)
-			{  // TODO: test if this is actually correct, and that is a big if. but if it is, then we can probably make this function into a service call, 
-			   // make it receive some tf, maybe you can specify it by name
-			   // and then this will calibrate the imu to have a new "starting" point, as in, it could be calibrated in place, say with an ar marker
-				ROS_WARN_STREAM("WARNING: EXPERIMENTAL! You may want to just fix the Yaw here, instead of the whole inverse tf...");
-
-				ROS_WARN_STREAM("CALIBRATING QUATERNION!!" <<XIMU3_quaternion_message_to_string(message) );
-				q_cal = tf2::Quaternion{message.x_element, message.y_element, message.z_element, message.w_element};
+			{  
+				calibration_int();
+				ROS_INFO_STREAM("done with calibration call");
 			}
 			tf2::Quaternion r{message.x_element, message.y_element, message.z_element, message.w_element};
 			/*ROS_INFO_STREAM("current q_cal: " 
@@ -446,7 +470,7 @@ class Connection
 			imu_pub.publish(imu_msg);
 			ros::spinOnce();
 			std::chrono::time_point c2= std::chrono::high_resolution_clock::now();
-			//ROS_INFO_STREAM("loop time: "<< std::chrono::duration_cast<std::chrono::microseconds>(c2-c1).count()<<"[us]");
+			ROS_INFO_STREAM("loop time: "<< std::chrono::duration_cast<std::chrono::microseconds>(c2-c1).count()<<"[us]");
 
 		};
 

@@ -187,6 +187,7 @@ int main(int argc, char** argv)
 	{
 		Connection c( parent_frame_id, own_tf_name, ahrs_divisor_rate, sensors_divisor_rate, origin, temp_pub, bat_pub, bat_v_pub, imu_pub, publish_status, nh, do_calib, use_imu_time_stamps);
 		//c.run(ximu3::UdpConnectionInfo("192.168.1.1", 9000, 8001));
+		ros::ServiceServer calib_srv = nh.advertiseService("calibrate", &Connection::calibrationSrv, &c);
 		c.run(ximu3::UdpConnectionInfo(ip_address, receive_port, send_port));
 	}
 	return 0;
