@@ -382,15 +382,20 @@ class Connection
 				auto q_measured = tf2::Quaternion{qmessage.x_element, qmessage.y_element, qmessage.z_element, qmessage.w_element};
 				auto Tt = tfBuffer.lookupTransform(parent_frame_id,calibration_frame_id,ros::Time(0));
 			
-				ROS_ERROR_STREAM("HARD CODED TRANSFORM FOR MAKING THE THING UPRIGHT! READ THE PARAM calibration_frame_id CHANGE IT TO PICK THIS FRAME FROM THE TF BUFFER ");
+				/*ROS_ERROR_STREAM("HARD CODED TRANSFORM FOR MAKING THE THING UPRIGHT! READ THE PARAM calibration_frame_id CHANGE IT TO PICK THIS FRAME FROM THE TF BUFFER ");
 				auto q_ref = tf2::Quaternion{0.7071067811865476, 0, -0.7071067811865476, 0};
 				ROS_INFO_STREAM("\tWhat I read: " << Tt.transform.rotation  << "\tWhat I create: "<<
 						"\n x: "<< q_ref.getX() <<
 						"\n y: "<< q_ref.getY() <<
 						"\n z: "<< q_ref.getZ() <<
 						"\n w: "<< q_ref.getW()
-						);
-				q_cal = q_ref*q_measured.inverse();
+						);*/
+				q_cal = tf2::Quaternion(
+						Tt.transform.rotation.x, 
+						Tt.transform.rotation.y, 
+						Tt.transform.rotation.z, 
+						Tt.transform.rotation.w 
+						)*q_measured.inverse();
 
 			just_calibrated = true;
 			ROS_INFO_STREAM("done with calibration");
