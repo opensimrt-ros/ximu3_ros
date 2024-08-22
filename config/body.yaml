@@ -1,0 +1,16 @@
+ximu_torso:
+ origin: [0,0,1.4]
+ximu_pelvis:
+ origin: [0.,0,1.0]
+ximu_femur_l:
+ origin: [0,-0.25,0.8]
+ximu_femur_r:
+ origin: [0,0.25,0.8]
+ximu_tibia_l:
+ origin: [0.0,-0.25,0.2]
+ximu_tibia_r:
+ origin: [0.0,0.25,0.2]
+ximu_talus_l:
+ origin: [0.1,-0.25,0.1]
+ximu_talus_r:
+ origin: [0.1,0.25,0.1]

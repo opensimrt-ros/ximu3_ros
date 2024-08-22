@@ -10,6 +10,9 @@
 	<arg name="do_calibration" 	default="false" />
 	<arg name="show_visuals"	default="true" />
 	<arg name="use_imu_time_stamps" 	default="true" />
+	<arg name="dummy_publisher"	default="false"/>
+	<arg name="wait_to_start"	default="false"/>
+	<arg name="tf_frame_prefix" 	default="" />
 	<!-- ahrs_divisor
 		0 .. disabled
 		1 .. 400 hz
@@ -22,7 +25,7 @@
 	<arg name="ahrs_divisor" 	default="1" />
 
 	<node pkg="ximu3_ros" type="imu_node" 	name="ximu_$(arg name)" output="screen">
-		<param name="name" 		value="$(arg name)" />
+		<param name="name" 		value="$(arg tf_frame_prefix)$(arg name)" />
 		<param name="publish_status" 	value="$(arg publish_status)" />
 		<param name="parent_frame_id" 	value="$(arg parent_frame_id)" />
 		<param name="receive_port"	value="$(arg receive_port)" />
@@ -30,11 +33,13 @@
 		<param name="ip_address"	value="$(arg ip_address)" />
 		<param name="ahrs_divisor"	value="$(arg ahrs_divisor)" />
 		<param name="do_calibration"	value="$(arg do_calibration)" />
+		<param name="wait_to_start" 	value="$(arg wait_to_start)" />
+		<param name="dummy_publisher" 	value="$(arg dummy_publisher)" />
 		<param name="use_imu_time_stamps"	value="$(arg use_imu_time_stamps)" />
         </node>
-	<group if="$(arg show_visuals)">
-		<param name="robot_description" command="$(find xacro)/xacro $(find ximu3_ros)/urdf/robot_ximu3.urdf.xacro ximu3_name:=$(arg name)"/>
-		<node name="rviz" pkg="rviz" type="rviz" args="-d $(find ximu3_ros)/ximu3_test.rviz" />
+	<group if="$(arg show_visuals)" >
+		<param name="ximu_$(arg name)_description" command="$(find xacro)/xacro $(find ximu3_ros)/urdf/robot_ximu3.urdf.xacro ximu3_name:=$(arg tf_frame_prefix)$(arg name)"/>
+		<node name="rviz" pkg="rviz" type="rviz" args="-d $(find ximu3_ros)/ximu3_test.rviz" if="false" />
 
 	</group>
 </launch>

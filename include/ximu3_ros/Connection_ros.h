@@ -441,15 +441,9 @@ class Connection
 			  << q_cal.getZ() << " , " 
 			  << q_cal.getW() );*/
 
-			//this seems incorrect. 
-			transformStamped.transform.rotation = tf2::toMsg(r*q_cal->inverse()); // the one that looks most like the correct thing so far
-											      //transformStamped.transform.rotation = tf2::toMsg(q_cal->inverse()*r);
+			//this seems correct. 
+											      transformStamped.transform.rotation = tf2::toMsg(q_cal->inverse()*r);
 
-											      //transformStamped.transform.rotation = tf2::toMsg(r.inverse());
-											      //transformStamped.transform.rotation = tf2::toMsg(r**q_cal);
-
-											      //
-											      //transformStamped.transform.rotation = tf2::toMsg(*q_cal*r*q_cal->inverse());
 			ROS_DEBUG_STREAM(transformStamped.transform.rotation);
 			if (false)
 			{
@@ -470,7 +464,7 @@ class Connection
 			imu_pub.publish(imu_msg);
 			ros::spinOnce();
 			std::chrono::time_point c2= std::chrono::high_resolution_clock::now();
-			ROS_INFO_STREAM("loop time: "<< std::chrono::duration_cast<std::chrono::microseconds>(c2-c1).count()<<"[us]");
+			//ROS_INFO_STREAM("loop time: "<< std::chrono::duration_cast<std::chrono::microseconds>(c2-c1).count()<<"[us]");
 
 		};
 
