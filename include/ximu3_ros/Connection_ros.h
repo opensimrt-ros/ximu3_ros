@@ -320,14 +320,14 @@ class Connection
 					message.accelerometer_z);
 			// std::cout << XIMU3_inertial_message_to_string(message) << std::endl; // alternative to above
 		
-			imu_msg.angular_velocity.x = message.gyroscope_x;
-			imu_msg.angular_velocity.y = message.gyroscope_y;
-			imu_msg.angular_velocity.z = message.gyroscope_z;
+			imu_msg.angular_velocity.x = message.gyroscope_x/180.0*3.14159265;
+			imu_msg.angular_velocity.y = message.gyroscope_y/180.0*3.14159265;
+			imu_msg.angular_velocity.z = message.gyroscope_z/180.0*3.14159265;
 			
 
-			imu_msg.linear_acceleration.x = message.accelerometer_x;
-			imu_msg.linear_acceleration.y = message.accelerometer_y;
-			imu_msg.linear_acceleration.z = message.accelerometer_z;
+			imu_msg.linear_acceleration.x = message.accelerometer_x*9.80665;
+			imu_msg.linear_acceleration.y = message.accelerometer_y*9.80665;
+			imu_msg.linear_acceleration.z = message.accelerometer_z*9.80665;
 			
 		};
 
