@@ -66,7 +66,7 @@ class Connection
 		tf2_ros::TransformBroadcaster br;
 		tf2_ros::Buffer tfBuffer;
 		tf2_ros::TransformListener tfListener;
-		float time_delay_monitor, battery_percentage_monitor;
+		float time_delay_monitor, battery_percentage_monitor, temperature_monitor;
 		//protected:
 		ros::WallTime last_time;
 		ros::WallTime initial_time;
@@ -82,7 +82,7 @@ class Connection
 		unsigned int my_other_divisor_rate = 8;
 		std::vector<double> origin;
 		std::optional<tf2::Quaternion> q_cal;
-		diagnostic_msgs::DiagnosticStatus d_msg;
+		diagnostic_msgs::DiagnosticStatus delay_msg, temperature_msg, percentage_msg;
 		diagnostic_msgs::DiagnosticArray da_msg;
 		//tf2::Quaternion q_cal{0,0,0,1};
 		bool publish_status;
@@ -149,8 +149,10 @@ class Connection
 		imu_name = child_frame_id; // maybe I should read something fancy here to better identify them
 		ROS_INFO("Parent frame_id set to %s", parent_frame_id.c_str());
 		ROS_INFO("Child frame_id set to %s", child_frame_id.c_str());
-		diags_pub = nh.advertise<diagnostic_msgs::DiagnosticArray>("/diagnostics",1);	
-		d_msg.name = imu_name;
+		diags_pub = nh.advertise<diagnostic_msgs::DiagnosticArray>("/diagnostics",5);	
+		delay_msg.name = imu_name+"/delay";
+		percentage_msg.name = imu_name+"/Battery Percentage";
+		temperature_msg.name = imu_name+"/Temperature";
 		da_msg.header.frame_id = parent_frame_id;
 		//q_cal = {0.5,0.5,0.5,0.5};
 		//set_heading_srv = nh.advertiseService("set_heading", &Connection::set_heading, this);
@@ -219,7 +221,7 @@ class Connection
 			{
 				ROS_ERROR_STREAM( "Unable to open connection");
 				return;
-			}
+			}	
 			ROS_INFO_STREAM("Connection successful");
 
 			set_rate();
@@ -236,6 +238,7 @@ class Connection
 				ros::WallTime this_time = ros::WallTime::now();
 				double execution_time = (this_time - last_time).toNSec()*1e-6;
 				r.sleep();
+				diagnostic_msgs::DiagnosticStatus d_msg;
 				if (last_time_stamp == 0) // hasnt published yet
 				{
 					d_msg.level = diagnostic_msgs::DiagnosticStatus::STALE;
@@ -266,16 +269,33 @@ class Connection
 					da_msg = a_diags_msg;
 				}
 
+				//this is annoying, it should be a class
+				if (delay_msg.message.size()>0)
+					{
+						da_msg.status.push_back(delay_msg);
+						delay_msg.message = "";
+					}
+				if (temperature_msg.message.size()>0)
+					{
+						da_msg.status.push_back(temperature_msg);
+						temperature_msg.message = "";
+					}
+				if (percentage_msg.message.size()>0)
+					{
+						da_msg.status.push_back(percentage_msg);
+						percentage_msg.message = "";
+					}
+
 				da_msg.header.stamp = ros::Time::now();
 				diags_pub.publish(da_msg);
 				da_msg.status.clear();
-			// Send command to strobe LED
-			if(just_calibrated) // I cant call the strobe from within a callback
-			{
-				const std::vector<std::string> commands { "{\"strobe\":null}" };
-				connection->sendCommands(commands, 2, 500);
-				just_calibrated = false;
-			}
+				// Send command to strobe LED
+				if(just_calibrated) // I cant call the strobe from within a callback
+				{
+					const std::vector<std::string> commands { "{\"strobe\":null}" };
+					connection->sendCommands(commands, 2, 500);
+					just_calibrated = false;
+				}
 			}
 
 			connection->close();
@@ -436,6 +456,15 @@ class Connection
 			auto estimate_time = get_estimated_imu_time(this_time_stamp);
 
 			time_delay_monitor = this_time.toSec() - estimate_time.toSec();
+			
+			std::stringstream s;
+			s <<  std::fixed << std::setprecision(2) << "Delay: "<< time_delay_monitor*1000 << "[ms]";
+			delay_msg.message = s.str();
+			if (time_delay_monitor > 0.1)
+				delay_msg.level = diagnostic_msgs::DiagnosticStatus::STALE;
+			else
+				delay_msg.level = diagnostic_msgs::DiagnosticStatus::OK;
+
 			geometry_msgs::TransformStamped transformStamped;
 			ros::Time some_time;
 			if (use_imu_time_stamps)
@@ -563,23 +592,26 @@ class Connection
 			//       message.temperature);
 			ROS_DEBUG_STREAM( XIMU3_temperature_message_to_string(message)); // alternative to above
 			std_msgs::Float32 temperature;
+			temperature_msg.message = "IMU Temperature: "+std::to_string(message.temperature);
 			if (message.temperature > 60)
 			{
-				d_msg.level = diagnostic_msgs::DiagnosticStatus::ERROR;
-				da_msg.status.push_back(d_msg);
-				da_msg.header.stamp = ros::Time::now();
-				diags_pub.publish(da_msg);
+				temperature_msg.level = diagnostic_msgs::DiagnosticStatus::ERROR;
 				ROS_FATAL("IMU TEMPERATURE TOO HIGH!!");
 				throw std::runtime_error("Temperature of IMU over 60C. Shutting off!!!");
 				std::exit(EXIT_FAILURE);
 			}
 
-			if (message.temperature > 50)
+			else if (message.temperature > 50)
 			{
-				d_msg.level = diagnostic_msgs::DiagnosticStatus::WARN;
-				da_msg.status.push_back(d_msg);
+				temperature_msg.level = diagnostic_msgs::DiagnosticStatus::WARN;
 				ROS_ERROR_STREAM("IMU has temperature of more than 50C!!!");
 			}
+			else
+			{
+				temperature_msg.level = diagnostic_msgs::DiagnosticStatus::OK;
+			
+			}
+			da_msg.status.push_back(temperature_msg);
 
 			temperature.data = message.temperature;
 			temp_pub.publish(temperature);
@@ -598,13 +630,15 @@ class Connection
 			battery_percentage_monitor = message.percentage;
 			battery_voltage.data = message.voltage;
 			bat_pub.publish(battery_percentage);
+			percentage_msg.message = "IMU Battery percentage: "+std::to_string(message.percentage);
 
 			if(message.percentage < 30)
 			{
 				ROS_WARN_STREAM("Battery about to run out on IMU: " << imu_name);
-				d_msg.level = diagnostic_msgs::DiagnosticStatus::WARN;
-				da_msg.status.push_back(d_msg);
+				percentage_msg.level = diagnostic_msgs::DiagnosticStatus::WARN;
 			}
+			else
+				percentage_msg.level = diagnostic_msgs::DiagnosticStatus::OK;
 			bat_v_pub.publish(battery_voltage);
 
 			ROS_DEBUG_STREAM( XIMU3_battery_message_to_string(message)); // alternative to above
