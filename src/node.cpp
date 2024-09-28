@@ -180,6 +180,10 @@ int main(int argc, char** argv)
 	{
 		ROS_WARN_STREAM("Running dummy_publisher!!! Not attempting to connect to imu: "<<own_tf_name);
 		ros::Rate rr(400.0/ahrs_divisor_rate);
+		auto diags_pub = nh.advertise<diagnostic_msgs::DiagnosticArray>("/diagnostics",5);	
+		diagnostic_msgs::DiagnosticStatus delay_msg, temperature_msg, percentage_msg;
+		delay_msg.name = own_tf_name+"/delay";
+		delay_msg.level = diagnostic_msgs::DiagnosticStatus::OK;
 
 		//this is missing the tfs...
 		while(ros::ok())
@@ -189,6 +193,10 @@ int main(int argc, char** argv)
 			imu_msg.header.frame_id = parent_frame_id;
 			imu_msg.orientation.w =1; // so that it isnt an unnormalized quaternion
 			imu_pub.publish(imu_msg);
+			diagnostic_msgs::DiagnosticArray a_diags_msg;
+			a_diags_msg.header = imu_msg.header;
+			a_diags_msg.status.push_back(delay_msg);
+			diags_pub.publish(a_diags_msg);
 			rr.sleep();
 			ros::spinOnce();
 		}
