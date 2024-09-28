@@ -1,3 +1,4 @@
+#include "geometry_msgs/TransformStamped.h"
 #include "ros/init.h"
 #include "ros/node_handle.h"
 #include "ros/publisher.h"
@@ -9,6 +10,9 @@
 #include "std_srvs/Empty.h"
 #include "std_srvs/EmptyRequest.h"
 #include "std_srvs/EmptyResponse.h"
+#include "tf/LinearMath/Transform.h"
+#include "tf/transform_broadcaster.h"
+#include "tf/transform_datatypes.h"
 #include "ximu3_ros/Connection_ros.h"
 #include "ros/ros.h"
 #include "std_msgs/Float32.h"
@@ -185,18 +189,24 @@ int main(int argc, char** argv)
 		delay_msg.name = own_tf_name+"/delay";
 		delay_msg.level = diagnostic_msgs::DiagnosticStatus::OK;
 
+		tf2_ros::TransformBroadcaster br;
 		//this is missing the tfs...
 		while(ros::ok())
 		{
 			sensor_msgs::Imu imu_msg;
+			geometry_msgs::TransformStamped t;
+			t.child_frame_id = own_tf_name;
 			imu_msg.header.stamp = ros::Time::now();
 			imu_msg.header.frame_id = parent_frame_id;
 			imu_msg.orientation.w =1; // so that it isnt an unnormalized quaternion
 			imu_pub.publish(imu_msg);
+			t.header = imu_msg.header;
+			t.transform.rotation = imu_msg.orientation;
 			diagnostic_msgs::DiagnosticArray a_diags_msg;
 			a_diags_msg.header = imu_msg.header;
 			a_diags_msg.status.push_back(delay_msg);
 			diags_pub.publish(a_diags_msg);
+			br.sendTransform(t);
 			rr.sleep();
 			ros::spinOnce();
 		}
